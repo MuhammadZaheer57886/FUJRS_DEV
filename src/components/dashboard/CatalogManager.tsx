@@ -32,19 +32,25 @@ export function CatalogManager() {
   }, [refresh]);
 
   async function handleAdd(input: NewCatalogItem) {
-    if (!session) return;
+    if (!session) {
+      toast("You need to be signed in to publish a product.", "error");
+      throw new StoreWriteError("You need to be signed in to publish a product.");
+    }
     try {
       await catalog.create(input, { email: session.user.email, name: session.user.name });
       setShowForm(false);
       await refresh();
       toast("Product published to the catalogue.", "success");
     } catch (err) {
-      toast(
-        err instanceof StoreWriteError && err.outOfSpace
-          ? "Storage is full. Remove an older product or use a smaller image."
-          : "Couldn't save that product.",
-        "info"
-      );
+      console.error("[catalog.create]", err);
+      // The product row may already exist (images/sizes failed after insert).
+      // Refresh so the table matches the database rather than looking empty.
+      try {
+        await refresh();
+      } catch (refreshErr) {
+        console.error("[catalog.list]", refreshErr);
+      }
+      toast(err instanceof StoreWriteError ? err.message : "Couldn't save that product.", "error");
       // Rethrown so the form keeps what was typed — it only clears on a save.
       throw err;
     }
@@ -57,9 +63,12 @@ export function CatalogManager() {
       await refresh();
       toast(`“${pendingRemoval.title}” removed from the catalogue.`, "info");
       setPendingRemoval(null);
-    } catch {
-      // Left open on the piece that didn't go, so a retry is one click away.
-      toast("Couldn't remove that product. Try again.", "info");
+    } catch (err) {
+      console.error("[catalog.remove]", err);
+      toast(
+        err instanceof StoreWriteError ? err.message : "Couldn't remove that product. Try again.",
+        "error"
+      );
     }
   }
 

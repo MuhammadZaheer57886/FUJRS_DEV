@@ -10,8 +10,9 @@ import type { StitchingStatus } from "@/lib/stitchingStatus";
 import type { PayoutStatus } from "@/lib/payouts";
 import type { MeasurementSet } from "@/lib/measurements";
 import type { UploadedImage } from "@/lib/downscaleImage";
+import type { LastSeen } from "@/lib/visits";
 
-export type { UploadedImage };
+export type { UploadedImage, LastSeen };
 
 // --- Accounts ---------------------------------------------------------------
 
@@ -524,9 +525,21 @@ export interface ManagedUser {
   email: string;
   role: AppRole;
   isActive: boolean;
+  /** True for a guest: a shopper with a bag but no account, so no email. */
+  isAnonymous: boolean;
   /** Vendors only. */
   referralCode: string | null;
+  /**
+   * Vendors only — null on every other role.
+   *
+   * It used to be non-null for everyone, because the affiliate migration gave
+   * the column a default of 10%. A rate on a customer is meaningless and was
+   * only ever a display artefact; the guest_identity_and_visits migration drops
+   * the defaults and adds a constraint so it stays null.
+   */
   commission: CommissionRate | null;
+  /** Where and on what they were last seen. Null until they visit again. */
+  lastSeen: LastSeen | null;
 }
 
 // --- Errors -----------------------------------------------------------------

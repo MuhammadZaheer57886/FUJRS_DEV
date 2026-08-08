@@ -13,6 +13,19 @@ interface AuthSession {
 
 interface AuthContextValue {
   session: AuthSession | null;
+
+  /**
+   * True when the session belongs to a guest rather than a registered account.
+   *
+   * A guest has a real session — that uuid is what owns their bag, their
+   * wishlist and a guest-checkout order — so `session !== null` answers "do we
+   * know who this is?", NOT "have they signed in?". Screens that offer to sign
+   * someone out, or show them account details they never entered, must check
+   * this. Screens that need the shopper's own data (their order, their bag)
+   * must not: a guest is entitled to those.
+   */
+  isGuest: boolean;
+
   status: "loading" | "authenticated" | "unauthenticated";
   signIn: (email: string, password: string) => Promise<{ error?: string; role?: AppRole }>;
   signUp: (input: { email: string; password: string; name: string }) => Promise<{ error?: string }>;
@@ -55,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
+      isGuest: session?.user.isAnonymous ?? false,
       status,
       async signIn(email, password) {
         const result = await auth.signIn(email, password);

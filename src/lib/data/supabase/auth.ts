@@ -45,6 +45,10 @@ async function loadUser(id: string, fallbackEmail: string): Promise<StoredUser |
     name: data.name || data.email || "Guest",
     role: data.role as AppRole,
     assignedStitcherSlug: null,
+    // From the database column, which the auth trigger mirrors from
+    // auth.users.is_anonymous — not from the JWT, for the same reason `role`
+    // isn't: the two must agree, and this table is what RLS reads.
+    isAnonymous: data.is_anonymous,
   };
 }
 

@@ -19,20 +19,55 @@ import {
 } from "./catalogRow";
 import { getBrowserClient } from "./client";
 
+/** PostgREST and Storage errors share enough shape to log the same way. */
+function logStoreError(step: string, error: unknown) {
+  if (error && typeof error === "object") {
+    const driver = error as {
+      code?: string;
+      statusCode?: string;
+      message?: string;
+      details?: string;
+      hint?: string;
+    };
+    console.error(`[catalog] ${step}`, {
+      code: driver.code,
+      statusCode: driver.statusCode,
+      message: driver.message,
+      details: driver.details,
+      hint: driver.hint,
+    });
+    return;
+  }
+  console.error(`[catalog] ${step}`, error);
+}
+
+function driverDetail(error: unknown): string | null {
+  if (!error || typeof error !== "object") return null;
+  const driver = error as { message?: string; hint?: string };
+  const parts = [driver.message, driver.hint].filter(
+    (part): part is string => Boolean(part && part.trim())
+  );
+  return parts.length > 0 ? parts.join(" — ") : null;
+}
+
 /** The admin form produces a data URL; Storage needs bytes. */
 function dataUrlToBlob(dataUrl: string): { blob: Blob; extension: string } | null {
   const match = /^data:(image\/([a-z+]+));base64,(.+)$/i.exec(dataUrl);
   if (!match) return null;
 
-  const [, mimeType, subtype, base64] = match;
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  try {
+    const [, mimeType, subtype, base64] = match;
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
 
-  return {
-    blob: new Blob([bytes], { type: mimeType }),
-    extension: subtype === "jpeg" ? "jpg" : subtype,
-  };
+    return {
+      blob: new Blob([bytes], { type: mimeType }),
+      extension: subtype === "jpeg" ? "jpg" : subtype,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export const supabaseCatalog: CatalogStore = {
@@ -43,7 +78,13 @@ export const supabaseCatalog: CatalogStore = {
       .is("archived_at", null)
       .order("created_at", { ascending: false });
 
-    if (error) throw new StoreWriteError("Couldn't load the catalogue.");
+    if (error) {
+      logStoreError("products.list", error);
+      const detail = driverDetail(error);
+      throw new StoreWriteError(
+        detail ? `Couldn't load the catalogue: ${detail}` : "Couldn't load the catalogue."
+      );
+    }
 
     return (data as unknown as ProductRow[] | null)?.map(toCatalogItem) ?? [];
   },
@@ -56,7 +97,10 @@ export const supabaseCatalog: CatalogStore = {
       .is("archived_at", null)
       .maybeSingle();
 
-    if (error) throw new StoreWriteError("Couldn't load that product.");
+    if (error) {
+      logStoreError("products.getBySlug", error);
+      throw new StoreWriteError("Couldn't load that product.");
+    }
 
     return data ? toCatalogItem(data as unknown as ProductRow) : null;
   },
@@ -104,11 +148,13 @@ export const supabaseCatalog: CatalogStore = {
       .single();
 
     if (error || !product) {
+      logStoreError("products.insert", error);
       // 42501 is Postgres "insufficient privilege" — i.e. RLS said no.
       // 23505 is a unique violation, which here can only be the SKU: the slug
       // carries a timestamp suffix, so it can't collide.
       // 23503 is a foreign key violation — a taxonomy option that was archived
       // and deleted, or a stale list in a tab left open since before a change.
+      const detail = driverDetail(error);
       throw new StoreWriteError(
         error?.code === "42501"
           ? "Your account isn't allowed to publish products."
@@ -116,7 +162,9 @@ export const supabaseCatalog: CatalogStore = {
             ? "That SKU is already used by another product."
             : error?.code === "23503"
               ? "One of the options you picked no longer exists. Reload and try again."
-              : "Couldn't save that product."
+              : detail
+                ? `Couldn't save that product: ${detail}`
+                : "Couldn't save that product."
       );
     }
 
@@ -124,20 +172,38 @@ export const supabaseCatalog: CatalogStore = {
     // will live. Until the form tracks stock per size, the product-level count
     // is the source of truth and variants carry zero.
     if (input.sizes.length > 0) {
-      await supabase
+      const { error: variantError } = await supabase
         .from("product_variants")
         .insert(input.sizes.map((size) => ({ product_id: product.id, size, stock: 0 })));
+      if (variantError) {
+        logStoreError("product_variants.insert", variantError);
+        const detail = driverDetail(variantError);
+        throw new StoreWriteError(
+          detail
+            ? `Product was saved but sizes weren't: ${detail}`
+            : "Product was saved but sizes weren't. Check the catalogue, then remove it and try again."
+        );
+      }
     }
 
     // Embroidery is a many-to-many now rather than the CSV string it was, so
     // the techniques are junction rows.
     if (input.embroideryIds.length > 0) {
-      await supabase.from("product_embroidery").insert(
+      const { error: embroideryError } = await supabase.from("product_embroidery").insert(
         input.embroideryIds.map((techniqueId) => ({
           product_id: product.id,
           technique_id: techniqueId,
         }))
       );
+      if (embroideryError) {
+        logStoreError("product_embroidery.insert", embroideryError);
+        const detail = driverDetail(embroideryError);
+        throw new StoreWriteError(
+          detail
+            ? `Product was saved but embroidery wasn't: ${detail}`
+            : "Product was saved but embroidery wasn't. Check the catalogue, then remove it and try again."
+        );
+      }
     }
 
     // Upload each image, then record the ones that made it. Order is the
@@ -150,33 +216,38 @@ export const supabaseCatalog: CatalogStore = {
       width: number;
       height: number;
     }[] = [];
+    const imageProblems: string[] = [];
 
     for (const [index, image] of input.images.entries()) {
       const decoded = dataUrlToBlob(image.dataUrl);
-      if (!decoded) continue;
+      if (!decoded) {
+        imageProblems.push(`image ${index + 1} couldn't be read`);
+        continue;
+      }
 
       const path = `${product.id}/${index}-${base}.${decoded.extension}`;
       const { error: uploadError } = await supabase.storage
         .from(PRODUCT_IMAGE_BUCKET)
         .upload(path, decoded.blob, { contentType: decoded.blob.type, upsert: true });
 
-      if (!uploadError) {
-        uploaded.push({
-          path,
-          mimeType: decoded.blob.type,
-          position: index,
-          bytes: decoded.blob.size,
-          width: image.width,
-          height: image.height,
-        });
+      if (uploadError) {
+        logStoreError(`storage.upload ${path}`, uploadError);
+        imageProblems.push(`image ${index + 1}: ${uploadError.message}`);
+        continue;
       }
-      // A failed upload skips that image rather than failing the publish —
-      // a product with three of four photos is recoverable by editing it;
-      // losing the whole submission is not.
+
+      uploaded.push({
+        path,
+        mimeType: decoded.blob.type,
+        position: index,
+        bytes: decoded.blob.size,
+        width: image.width,
+        height: image.height,
+      });
     }
 
     if (uploaded.length > 0) {
-      await supabase.from("product_images").insert(
+      const { error: imageRowError } = await supabase.from("product_images").insert(
         uploaded.map((image) => ({
           product_id: product.id,
           storage_path: image.path,
@@ -189,6 +260,23 @@ export const supabaseCatalog: CatalogStore = {
           bytes: image.bytes,
           mime_type: image.mimeType,
         }))
+      );
+      if (imageRowError) {
+        logStoreError("product_images.insert", imageRowError);
+        const detail = driverDetail(imageRowError);
+        throw new StoreWriteError(
+          detail
+            ? `Images uploaded but couldn't be attached: ${detail}`
+            : "Images uploaded but couldn't be attached to the product. Check the catalogue, then remove it and try again."
+        );
+      }
+    }
+
+    if (imageProblems.length > 0) {
+      throw new StoreWriteError(
+        uploaded.length === 0
+          ? `Product was saved but none of the images uploaded (${imageProblems.join("; ")}). Check the catalogue, then remove it and try again.`
+          : `Product was saved but ${imageProblems.length} image${imageProblems.length === 1 ? "" : "s"} didn't upload (${imageProblems.join("; ")}).`
       );
     }
 
@@ -259,10 +347,14 @@ export const supabaseCatalog: CatalogStore = {
       .eq("id", id);
 
     if (error) {
+      logStoreError("products.archive", error);
+      const detail = driverDetail(error);
       throw new StoreWriteError(
         error.code === "42501"
           ? "Your account isn't allowed to remove products."
-          : "Couldn't remove that product."
+          : detail
+            ? `Couldn't remove that product: ${detail}`
+            : "Couldn't remove that product."
       );
     }
   },

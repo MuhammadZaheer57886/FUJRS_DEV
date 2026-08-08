@@ -28,13 +28,15 @@ function FieldShell({
   children: ReactNode;
 }) {
   return (
-    <div>
+    <div data-invalid={error ? "true" : undefined}>
       <label htmlFor={id} className={labelClass}>
         {label}
       </label>
       <div className="mt-1.5">{children}</div>
       {error ? (
-        <p className="mt-1.5 font-label-sm text-label-sm text-error">{error}</p>
+        <p className="mt-1.5 font-label-sm text-label-sm text-error" role="alert">
+          {error}
+        </p>
       ) : (
         hint && <p className="mt-1.5 font-label-sm text-label-sm text-text-muted">{hint}</p>
       )}

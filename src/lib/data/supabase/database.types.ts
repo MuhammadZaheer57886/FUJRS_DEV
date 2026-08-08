@@ -1261,6 +1261,12 @@ export type Database = {
           id: string
           is_active: boolean
           is_anonymous: boolean
+          last_seen_at: string | null
+          last_seen_browser: string | null
+          last_seen_city: string | null
+          last_seen_country: string | null
+          last_seen_device: string | null
+          last_seen_os: string | null
           name: string | null
           password_hash: string | null
           referral_code: string | null
@@ -1279,6 +1285,12 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_anonymous?: boolean
+          last_seen_at?: string | null
+          last_seen_browser?: string | null
+          last_seen_city?: string | null
+          last_seen_country?: string | null
+          last_seen_device?: string | null
+          last_seen_os?: string | null
           name?: string | null
           password_hash?: string | null
           referral_code?: string | null
@@ -1297,6 +1309,12 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_anonymous?: boolean
+          last_seen_at?: string | null
+          last_seen_browser?: string | null
+          last_seen_city?: string | null
+          last_seen_country?: string | null
+          last_seen_device?: string | null
+          last_seen_os?: string | null
           name?: string | null
           password_hash?: string | null
           referral_code?: string | null

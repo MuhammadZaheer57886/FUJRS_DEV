@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { CatalogItem } from "@/lib/data";
 import { DEFAULT_STITCHER_SLUG } from "@/data/stitchers";
 import { orderTotals } from "@/lib/pricing";
@@ -49,6 +49,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [mounted, setMounted] = useState(false);
 
+  /** What the store already holds, so an unchanged bag isn't written back. */
+  const persisted = useRef<string>(JSON.stringify([]));
+
   // Storage lives in the data layer, so this provider holds React state only
   // and swaps backends with everything else. See BACKEND_SETUP.md §1.
   useEffect(() => {
@@ -56,7 +59,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     cart
       .read()
       .then((lines) => {
-        if (active) setItems(lines);
+        if (!active) return;
+        persisted.current = JSON.stringify(lines);
+        setItems(lines);
       })
       .finally(() => {
         if (active) setMounted(true);
@@ -70,6 +75,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     // Skip the write until the first read has landed, or an empty initial
     // state would overwrite a real saved bag.
     if (!mounted) return;
+
+    // And skip it when nothing has actually changed. `mounted` flipping true
+    // fires this effect once with whatever `read()` returned, so without the
+    // comparison every page load writes the bag straight back — a round trip
+    // that saves nothing, and for a signed-out visitor a guest account created
+    // to hold an empty bag.
+    const snapshot = JSON.stringify(items);
+    if (snapshot === persisted.current) return;
+    persisted.current = snapshot;
+
     void cart.write(items);
   }, [items, mounted]);
 

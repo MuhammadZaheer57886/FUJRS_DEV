@@ -24,6 +24,9 @@ function toUser(account: Account): StoredUser {
     name: account.name || account.email,
     role: account.role,
     assignedStitcherSlug: null,
+    // The local adapter has no guest identity — you are either registered on
+    // this device or you have no session at all.
+    isAnonymous: false,
   };
 }
 

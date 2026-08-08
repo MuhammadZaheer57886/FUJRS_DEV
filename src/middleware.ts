@@ -11,8 +11,7 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseConfigured } from "@/lib/data/
  * page renders — Server Components can't set cookies.
  */
 export async function middleware(request: NextRequest) {
-  // No-op while the app runs on the local adapter, or before the keys are
-  // filled in. Without this guard an empty .env.local would 500 every route.
+  
   if (!supabaseConfigured || process.env.NEXT_PUBLIC_DATA_BACKEND !== "supabase") {
     return NextResponse.next({ request });
   }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { SignInRequired } from "@/components/auth/SignInRequired";
 import { Button } from "@/components/ui/Button";
 import { FormSection, ReadOnlyField, TextField } from "@/components/ui/Field";
 import { ImageUpload } from "@/components/ui/ImageUpload";
@@ -254,7 +255,7 @@ function AddressSection({ email }: { email: string }) {
 }
 
 export default function AccountSettingsPage() {
-  const { session, status } = useAuth();
+  const { session, status, isGuest } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -263,6 +264,19 @@ export default function AccountSettingsPage() {
 
   if (status === "loading" || !session) {
     return <LoadingScreen />;
+  }
+
+  // Every section here edits something a guest doesn't have: a display name, a
+  // password, an email. Rendering the forms would offer edits that can only
+  // fail — a guest has no password to change and no name to save.
+  if (isGuest) {
+    return (
+      <SignInRequired
+        title="Sign In to See Your Settings"
+        message="Account settings are for registered accounts. Sign in, or create one, to manage your profile, password and saved address."
+        callbackUrl="/account/settings"
+      />
+    );
   }
 
   return (

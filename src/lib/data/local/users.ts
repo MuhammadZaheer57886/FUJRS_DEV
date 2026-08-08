@@ -32,8 +32,14 @@ function toManaged(account: Account, rates: RatesByEmail): ManagedUser {
     email: account.email,
     role: account.role,
     isActive: true,
+    // The local build has no anonymous identity — an account here was
+    // registered on this device.
+    isAnonymous: false,
     referralCode: isVendor ? referralCodeFor(account.email) : null,
     commission: isVendor ? (rates[account.email] ?? DEFAULT_COMMISSION) : null,
+    // Visits are a server-side observation about a request, and there is no
+    // server here. The dashboard renders this as "Not recorded".
+    lastSeen: null,
   };
 }
 

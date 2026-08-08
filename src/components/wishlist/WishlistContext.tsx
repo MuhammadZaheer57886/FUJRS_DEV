@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { CatalogItem } from "@/lib/data";
 import { wishlist } from "@/lib/data";
 
@@ -17,13 +17,18 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [slugs, setSlugs] = useState<string[]>([]);
   const [mounted, setMounted] = useState(false);
 
+  /** What the store already holds, so an unchanged list isn't written back. */
+  const persisted = useRef<string>(JSON.stringify([]));
+
   // Storage lives in the data layer; this provider holds React state only.
   useEffect(() => {
     let active = true;
     wishlist
       .read()
       .then((saved) => {
-        if (active) setSlugs(saved);
+        if (!active) return;
+        persisted.current = JSON.stringify(saved);
+        setSlugs(saved);
       })
       .finally(() => {
         if (active) setMounted(true);
@@ -37,6 +42,13 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     // Skip until the first read lands, or an empty initial state would
     // overwrite a real saved wishlist.
     if (!mounted) return;
+
+    // Skip it again when the list matches what was read — see CartContext for
+    // why: the mount-time write is what was minting a guest account per visit.
+    const snapshot = JSON.stringify(slugs);
+    if (snapshot === persisted.current) return;
+    persisted.current = snapshot;
+
     void wishlist.write(slugs);
   }, [slugs, mounted]);
 

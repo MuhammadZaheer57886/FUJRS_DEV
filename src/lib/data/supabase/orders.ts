@@ -16,6 +16,7 @@ import { STITCHING_STATUSES } from "@/lib/stitchingStatus";
 import type { OrderStore } from "../ports";
 import { StoreWriteError, type Order, type PaymentMethod } from "../types";
 import { getBrowserClient } from "./client";
+import { ensureUserId } from "./identity";
 
 const ORDER_SELECT = `
   id, order_number, status, placed_at,
@@ -115,21 +116,15 @@ function toOrder(row: OrderRow): Order {
  * `auth.users` row, the order belongs to it, and registering later keeps the
  * same uuid, so the history follows them (BACKEND_SETUP.md §7).
  *
+ * This goes through the shared `ensureUserId()` rather than calling
+ * signInAnonymously() here. A second copy would sit outside that function's
+ * de-duplication and could mint a guest alongside the one the bag just created.
+ *
  * Requires "Anonymous sign-ins" to be enabled for the project. If it isn't,
- * this fails loudly rather than placing an order nobody can retrieve.
+ * ensureUserId() throws rather than placing an order nobody can retrieve.
  */
 async function ensureIdentity() {
-  const supabase = getBrowserClient();
-  const { data } = await supabase.auth.getUser();
-  if (data.user) return;
-
-  const { error } = await supabase.auth.signInAnonymously();
-  if (error) {
-    throw new StoreWriteError(
-      "We couldn't start a guest session. Please sign in and try again, or enable " +
-        "anonymous sign-ins for this project."
-    );
-  }
+  await ensureUserId();
 }
 
 export const supabaseOrders: OrderStore = {

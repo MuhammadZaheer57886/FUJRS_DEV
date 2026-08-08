@@ -71,7 +71,11 @@ function RatingChooser({ value, onChange }: { value: number; onChange: (rating: 
 }
 
 export function ProductReviews({ productSlug }: { productSlug: string }) {
-  const { session } = useAuth();
+  // A guest has a session but `reviews_write_own` requires a durable account
+  // (`not is_anonymous_user()`), so showing them the form would offer a submit
+  // that RLS rejects. They get the same sign-in prompt as someone signed out.
+  const { session, isGuest } = useAuth();
+  const canReview = Boolean(session) && !isGuest;
   const { toast } = useToast();
 
   const [list, setList] = useState<Review[] | null>(null);
@@ -195,7 +199,7 @@ export function ProductReviews({ productSlug }: { productSlug: string }) {
         </div>
 
         <div className="lg:col-span-5">
-          {session ? (
+          {canReview ? (
             <form onSubmit={handleSubmit} noValidate className="border border-outline-variant p-8">
               <h4 className="font-display text-headline-sm">
                 {mine ? "Edit your review" : "Write a review"}

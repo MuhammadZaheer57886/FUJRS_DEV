@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { SignOutButton } from "@/components/auth/SignOutButton";
+import { SignInRequired } from "@/components/auth/SignInRequired";
 import { LinkButton } from "@/components/ui/Button";
 import { formatOrderNumber } from "@/lib/orderNumber";
 import { orders as orderStore } from "@/lib/data";
@@ -224,7 +225,7 @@ function CustomerAccount({ user }: { user: AccountUser }) {
 }
 
 export default function AccountPage() {
-  const { session, status } = useAuth();
+  const { session, status, isGuest } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -236,6 +237,19 @@ export default function AccountPage() {
       <div className="max-w-container-max mx-auto px-margin-mobile py-16 text-center text-on-surface-variant">
         Loading your account…
       </div>
+    );
+  }
+
+  // A guest reaches this route by typing it or following an old link. There is
+  // no name, email or order history behind their session and nothing to sign
+  // out of, so showing the account shell would be showing them blanks.
+  if (isGuest) {
+    return (
+      <SignInRequired
+        title="Sign In to See Your Account"
+        message="You're browsing as a guest. Sign in, or create an account, to see your order history and profile."
+        callbackUrl="/account"
+      />
     );
   }
 

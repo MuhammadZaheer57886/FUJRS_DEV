@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { TextAreaField, TextField, SelectField } from "@/components/ui/Field";
 import { ChipMultiSelect, ColorSwatchPicker, OptionSelect } from "@/components/ui/OptionPickers";
 import { ImageGalleryUpload } from "@/components/ui/ImageGalleryUpload";
+import { useToast } from "@/components/ui/Toast";
 import { productTaxonomy } from "@/lib/data";
 import {
   PRODUCT_GENDERS,
@@ -199,6 +200,8 @@ export function ProductForm({
   /** Super Admins manage the lists; everyone else is told who can. */
   canManageOptions?: boolean;
 }) {
+  const { toast } = useToast();
+  const formRef = useRef<HTMLFormElement>(null);
   const [form, setForm] = useState(emptyForm);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -308,7 +311,16 @@ export function ProductForm({
 
     const found = validate(form, category);
     setErrors(found);
-    if (Object.keys(found).length > 0) return;
+    if (Object.keys(found).length > 0) {
+      const first = Object.values(found)[0];
+      toast(first ?? "Check the highlighted fields.", "error");
+      requestAnimationFrame(() => {
+        formRef.current
+          ?.querySelector<HTMLElement>("[data-invalid='true']")
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -348,9 +360,10 @@ export function ProductForm({
 
       setForm(emptyForm);
       setImages([]);
-    } catch {
-      // The caller has already told the user what went wrong; leave every
-      // field as it was so they can fix it and submit again.
+    } catch (err) {
+      // The caller toasts the reason. Log here so a missed toast still leaves
+      // a trace for whoever has DevTools open.
+      console.error("[ProductForm] save failed", err);
     } finally {
       setSubmitting(false);
     }
@@ -377,6 +390,7 @@ export function ProductForm({
 
   return (
     <form
+      ref={formRef}
       onSubmit={(e) => void handleSubmit(e)}
       noValidate
       aria-busy={submitting || undefined}

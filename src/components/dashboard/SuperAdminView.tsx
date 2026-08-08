@@ -31,7 +31,37 @@ import {
   type CommissionType,
 } from "@/lib/commission";
 import type { AppRole } from "@/lib/auth/roles";
+import { formatDevice, formatLastSeenAt, formatLocation, type LastSeen } from "@/lib/visits";
 import { LoadingRow } from "@/components/ui/Loading";
+
+/**
+ * Where and on what someone was last seen.
+ *
+ * Every part is optional: a bare Node host sends no geo headers, and a
+ * user-agent may not identify itself. Each missing piece is simply left out
+ * rather than filled with "Unknown" — a row of Unknowns reads as broken.
+ */
+function LastSeenCell({ lastSeen }: { lastSeen: LastSeen | null }) {
+  if (!lastSeen) {
+    return <span className="text-label-sm text-text-muted">Not recorded</span>;
+  }
+
+  const location = formatLocation(lastSeen.city, lastSeen.country);
+  const device = formatDevice(lastSeen);
+
+  return (
+    <div className="min-w-[12rem]">
+      <p className="text-body-md">
+        {location ?? <span className="text-text-muted">Location unavailable</span>}
+        {device && <span className="text-text-muted"> · {device}</span>}
+      </p>
+      <p className="mt-0.5 text-label-sm text-text-muted">
+        {formatLastSeenAt(lastSeen.at)}
+        {lastSeen.device && ` · ${lastSeen.device}`}
+      </p>
+    </div>
+  );
+}
 
 type Section = "OVERVIEW" | "CATALOGUE" | "VENDORS" | "USERS" | "ACCESS";
 
@@ -47,15 +77,11 @@ const ASSIGNABLE_ROLES: AppRole[] = ["CUSTOMER", "ADMIN", "VENDOR", "TAILOR", "S
 
 const ACCESS_ROLES: AppRole[] = ["ADMIN", "VENDOR", "TAILOR"];
 
-interface UserRow {
-  id: string;
-  name: string;
-  email: string;
-  role: AppRole;
-}
-
 interface UsersResponse {
-  users: UserRow[];
+  // ManagedUser itself, not a narrowed copy — the copy went stale the moment
+  // the port grew a field, and re-declaring the shape here is what let that
+  // happen silently.
+  users: ManagedUser[];
   roleCounts: { role: AppRole; count: number }[];
 }
 
@@ -412,18 +438,31 @@ export function SuperAdminView() {
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Email</th>
                   <th className="px-4 py-3">Role</th>
+                  <th className="px-4 py-3">Last Seen</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-subtle">
-                {!usersData && <LoadingRow colSpan={3} />}
+                {!usersData && <LoadingRow colSpan={4} />}
                 {usersData?.users.map((u) => (
                   <tr key={u.id}>
-                    <td className="px-4 py-3">{u.name}</td>
-                    <td className="px-4 py-3">{u.email}</td>
+                    <td className="px-4 py-3">
+                      {u.name}
+                      {u.isAnonymous && (
+                        <span className="ml-2 border border-border-subtle px-2 py-0.5 text-label-sm uppercase text-text-muted">
+                          Guest
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {u.email || <span className="text-text-muted">—</span>}
+                    </td>
                     <td className="px-4 py-3">
                       <span className="text-label-sm uppercase text-text-muted">
                         {ROLE_LABELS[u.role]}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <LastSeenCell lastSeen={u.lastSeen} />
                     </td>
                   </tr>
                 ))}

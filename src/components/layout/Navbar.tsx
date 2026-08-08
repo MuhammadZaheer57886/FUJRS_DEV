@@ -118,13 +118,19 @@ export function Navbar() {
   const [query, setQuery] = useState("");
   const router = useRouter();
   const pathname = usePathname();
-  const { session } = useAuth();
+  const { session, isGuest } = useAuth();
   const { items, mounted } = useCart();
   const { slugs, mounted: wishlistMounted } = useWishlist();
 
   const cartCount = mounted ? items.reduce((sum, i) => sum + i.qty, 0) : 0;
   const wishlistCount = wishlistMounted ? slugs.length : 0;
   const showDashboardLink = canAccessDashboard(session?.user.role);
+
+  // A guest holds a session so their bag has an owner, but there is no account
+  // behind it — so the person icon offers sign-in, exactly as it does for
+  // someone with no session at all.
+  const signedIn = Boolean(session) && !isGuest;
+  const accountHref = signedIn ? "/account" : "/login";
 
   // A section counts as current for its own page and anything beneath it, so
   // /tailoring stays lit on /tailoring/configure.
@@ -186,16 +192,16 @@ export function Navbar() {
               )}
             </Link>
             <Link
-              aria-label={session ? "My Account" : "Sign In"}
-              href={session ? "/account" : "/login"}
-              aria-current={isActive(session ? "/account" : "/login") ? "page" : undefined}
+              aria-label={signedIn ? "My Account" : "Sign In"}
+              href={accountHref}
+              aria-current={isActive(accountHref) ? "page" : undefined}
               className={`hidden sm:block hover:text-tertiary-fixed-dim transition-all duration-300 scale-95 active:scale-90 ${
-                isActive(session ? "/account" : "/login") ? "text-primary" : ""
+                isActive(accountHref) ? "text-primary" : ""
               }`}
             >
               <span
                 className="material-symbols-outlined"
-                style={session ? { fontVariationSettings: "'FILL' 1" } : undefined}
+                style={signedIn ? { fontVariationSettings: "'FILL' 1" } : undefined}
               >
                 person
               </span>
@@ -278,11 +284,11 @@ export function Navbar() {
                 </MobileNavLink>
               ))}
               <MobileNavLink
-                href={session ? "/account" : "/login"}
-                active={isActive(session ? "/account" : "/login")}
+                href={accountHref}
+                active={isActive(accountHref)}
                 onNavigate={() => setMobileOpen(false)}
               >
-                {session ? "MY ACCOUNT" : "ACCOUNT"}
+                {signedIn ? "MY ACCOUNT" : "ACCOUNT"}
               </MobileNavLink>
               {showDashboardLink && (
                 <MobileNavLink

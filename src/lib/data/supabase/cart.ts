@@ -90,6 +90,12 @@ export const supabaseCart: CartStore = {
   },
 
   async write(lines) {
+    // An empty bag from someone with no session is not intent — it is the
+    // provider persisting its initial state on first paint. Signing them in
+    // for it would mint a guest row for every visitor who only browsed, and
+    // then store nothing in it.
+    if (lines.length === 0 && !(await currentUserId())) return;
+
     // Writing implies intent, so this is where a guest gets their uuid.
     const userId = await ensureUserId();
     const supabase = getBrowserClient();

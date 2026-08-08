@@ -30,6 +30,11 @@ export const supabaseWishlist: WishlistStore = {
   },
 
   async write(slugs) {
+    // Nothing saved and nobody signed in means the provider is persisting its
+    // initial state, not a shopper saving something. Same reasoning as the bag:
+    // don't mint a guest row to hold an empty list.
+    if (slugs.length === 0 && !(await currentUserId())) return;
+
     const userId = await ensureUserId();
     const supabase = getBrowserClient();
 

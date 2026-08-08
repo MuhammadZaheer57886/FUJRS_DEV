@@ -12,10 +12,68 @@ import { NextResponse } from "next/server";
 import type { AppRole } from "@/lib/auth/roles";
 import { STAFF_ROLES } from "@/lib/auth/roles";
 import { DEFAULT_COMMISSION, validateCommission } from "@/lib/commission";
+import type { DeviceKind } from "@/lib/visits";
 import { createAdminSupabase, createServerSupabase } from "@/lib/data/supabase/server";
 
 const CREATABLE_ROLES: AppRole[] = ["CUSTOMER", ...STAFF_ROLES];
 const MIN_PASSWORD_LENGTH = 8;
+
+/** Every column the user list and the create response both project. */
+const USER_COLUMNS = `id, name, email, role, is_active, is_anonymous, referral_code,
+   commission_type, commission_value, last_seen_at, last_seen_city, last_seen_country,
+   last_seen_browser, last_seen_os, last_seen_device`;
+
+interface UserRow {
+  id: string;
+  name: string | null;
+  email: string | null;
+  role: AppRole;
+  is_active: boolean;
+  is_anonymous: boolean;
+  referral_code: string | null;
+  commission_type: "PERCENT" | "FLAT" | null;
+  commission_value: number | null;
+  last_seen_at: string | null;
+  last_seen_city: string | null;
+  last_seen_country: string | null;
+  last_seen_browser: string | null;
+  last_seen_os: string | null;
+  last_seen_device: string | null;
+}
+
+/**
+ * One row, as the dashboard reads it. snake_case stays on this side of the
+ * boundary (CLAUDE.md) — a raw row never reaches a component.
+ */
+function toManagedUser(row: UserRow) {
+  return {
+    id: row.id,
+    // A guest has no name of their own; the screen needs something to show.
+    name: row.name ?? (row.is_anonymous ? "Guest" : ""),
+    email: row.email ?? "",
+    role: row.role,
+    isActive: row.is_active,
+    isAnonymous: row.is_anonymous,
+    referralCode: row.referral_code,
+    // Guarded on role as well as on the columns. The migration nulls these for
+    // non-vendors and constrains them, but a rate on a customer is meaningless
+    // enough that the boundary should refuse to report one either way.
+    commission:
+      row.role === "VENDOR" && row.commission_type && row.commission_value != null
+        ? { type: row.commission_type, value: Number(row.commission_value) }
+        : null,
+    lastSeen: row.last_seen_at
+      ? {
+          at: row.last_seen_at,
+          city: row.last_seen_city,
+          country: row.last_seen_country,
+          browser: row.last_seen_browser,
+          os: row.last_seen_os,
+          device: row.last_seen_device as DeviceKind | null,
+        }
+      : null,
+  };
+}
 
 /** Matches the ^FJ-[0-9A-Z]{6}$ shape the app validates against. */
 function generateReferralCode(): string {
@@ -59,7 +117,7 @@ export async function GET() {
   const supabase = await createServerSupabase();
   const { data, error } = await supabase
     .from("users")
-    .select("id, name, email, role, is_active, referral_code, commission_type, commission_value")
+    .select(USER_COLUMNS)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -67,18 +125,7 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    users: (data ?? []).map((u) => ({
-      id: u.id,
-      name: u.name ?? "",
-      email: u.email ?? "",
-      role: u.role,
-      isActive: u.is_active,
-      referralCode: u.referral_code,
-      commission:
-        u.commission_type && u.commission_value != null
-          ? { type: u.commission_type, value: Number(u.commission_value) }
-          : null,
-    })),
+    users: ((data ?? []) as unknown as UserRow[]).map(toManagedUser),
   });
 }
 
@@ -158,7 +205,7 @@ export async function POST(request: Request) {
     .from("users")
     .update(patch)
     .eq("id", created.user.id)
-    .select("id, name, email, role, is_active, referral_code, commission_type, commission_value")
+    .select(USER_COLUMNS)
     .single();
 
   if (updateError || !row) {
@@ -168,20 +215,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Couldn't finish creating that user." }, { status: 500 });
   }
 
-  return NextResponse.json({
-    user: {
-      id: row.id,
-      name: row.name ?? "",
-      email: row.email ?? "",
-      role: row.role,
-      isActive: row.is_active,
-      referralCode: row.referral_code,
-      commission:
-        row.commission_type && row.commission_value != null
-          ? { type: row.commission_type, value: Number(row.commission_value) }
-          : null,
-    },
-  });
+  return NextResponse.json({ user: toManagedUser(row as unknown as UserRow) });
 }
 
 export async function PATCH(request: Request) {
