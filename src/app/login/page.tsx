@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Button } from "@/components/ui/Button";
-import { DEMO_ACCOUNTS, ROLE_LABELS, isStaffRole } from "@/lib/auth/roles";
+import { isStaffRole } from "@/lib/auth/roles";
 
 function LoginForm() {
   const router = useRouter();
@@ -99,19 +99,6 @@ function LoginForm() {
             Create an account
           </Link>
         </p>
-
-        <div className="mt-8 border-t border-outline-variant pt-6">
-          <p className="font-label-sm uppercase tracking-widest text-marketplace-bronze">
-            Demo accounts (any password)
-          </p>
-          <ul className="mt-2 space-y-1 font-body text-body-md text-on-surface-variant">
-            {DEMO_ACCOUNTS.map((account) => (
-              <li key={account.email}>
-                {account.email} — {ROLE_LABELS[account.role]}
-              </li>
-            ))}
-          </ul>
-        </div>
       </div>
     </div>
   );

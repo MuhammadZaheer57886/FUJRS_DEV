@@ -43,11 +43,12 @@ export const ROLE_WORKSPACE: Record<StaffRole, { summary: string; duties: string
     ],
   },
   VENDOR: {
-    summary: "Propose new pieces for the FUJRS catalogue and track where each submission stands.",
+    summary:
+      "Market FUJRS pieces through your own channels and earn commission on everything that sells through your links.",
     duties: [
-      "Submit new products for review",
-      "Track pending and approved submissions",
-      "Keep fabric and pricing details current",
+      "Take a referral link for any piece in the catalogue",
+      "Share it across your social channels",
+      "Track referred sales and commission earned",
     ],
   },
   TAILOR: {
@@ -59,21 +60,3 @@ export const ROLE_WORKSPACE: Record<StaffRole, { summary: string; duties: string
     ],
   },
 };
-
-// This build has no backend. Signing in with one of these emails builds a
-// client-only session, and the dashboard views read fixtures from
-// src/lib/auth/demoData.ts. Any password is accepted — there is nothing to
-// authenticate against until the real backend exists.
-export const DEMO_ACCOUNTS: { email: string; role: AppRole }[] = [
-  { email: "user@gmail.com", role: "CUSTOMER" },
-  { email: "admin@gmail.com", role: "ADMIN" },
-  { email: "vendor@gmail.com", role: "VENDOR" },
-  { email: "tailor@gmail.com", role: "TAILOR" },
-  { email: "superadmin@gmail.com", role: "SUPER_ADMIN" },
-];
-
-const DEMO_EMAILS = new Set(DEMO_ACCOUNTS.map((account) => account.email));
-
-export function isDemoEmail(email: string): boolean {
-  return DEMO_EMAILS.has(email.trim().toLowerCase());
-}

@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { Reveal } from "@/components/ui/Reveal";
 import { AddToBagButton } from "@/components/product/AddToBagButton";
-import type { Product } from "@/data/products";
+import type { CatalogItem } from "@/lib/data";
+import { ProductImage } from "@/components/ui/ProductImage";
+import { Swatch } from "@/components/ui/OptionPickers";
 
 export function WomenProductTile({
   product,
@@ -13,7 +14,7 @@ export function WomenProductTile({
   delay = 0,
   offset = false,
 }: {
-  product: Product;
+  product: CatalogItem;
   span: "large" | "medium" | "normal";
   quickAddLabel: string;
   delay?: number;
@@ -28,7 +29,7 @@ export function WomenProductTile({
         href={`/products/${product.slug}`}
         className={`relative ${aspect} overflow-hidden mb-6 block`}
       >
-        <Image
+        <ProductImage
           src={product.images[0]}
           alt={product.title}
           fill
@@ -51,7 +52,8 @@ export function WomenProductTile({
       <div className="flex justify-between items-start">
         <div>
           <h3 className="font-headline-sm text-headline-sm text-primary mb-1">{product.title}</h3>
-          <p className="font-label-sm text-label-sm uppercase text-secondary tracking-widest">
+          <p className="flex items-center gap-1.5 font-label-sm text-label-sm uppercase text-secondary tracking-widest">
+            <Swatch hex={product.colorHex} size={12} />
             {product.color}
           </p>
         </div>

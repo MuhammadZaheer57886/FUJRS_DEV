@@ -1,5 +1,5 @@
-import { StatusScreen } from "@/components/ui/StatusScreen";
+import { LoadingScreen } from "@/components/ui/Loading";
 
 export default function Loading() {
-  return <StatusScreen pulse icon="apparel" eyebrow="FUJRS" title="Preparing your selection…" />;
+  return <LoadingScreen />;
 }

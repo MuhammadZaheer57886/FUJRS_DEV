@@ -134,6 +134,11 @@ after Phase 1 is done):
 These need an answer from you and/or [Friend's Name] before or during build
 — flagged here so nothing gets assumed silently:
 
+> **Update 4 Aug 2026:** none of these block UI work. The build runs on a
+> working default for each, and anything that needs a real backend shows a
+> "coming soon" state rather than waiting on an answer. Only three affect the
+> database structure — see [SCHEMA.md](./SCHEMA.md), where they're marked.
+
 - Payment methods to support (bank transfer, card, JazzCash/Easypaisa, COD, etc.).
 - Commission structure: flat amount vs. percentage, and whether it varies by product or vendor.
 - Vendor link model: unique link per product, or one referral code usable across all products?

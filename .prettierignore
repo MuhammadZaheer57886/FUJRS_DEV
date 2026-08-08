@@ -3,3 +3,11 @@ node_modules
 out
 *.md
 package-lock.json
+
+# Supabase CLI local state and generated SQL
+supabase/.temp
+supabase/.branches
+
+# Generated — regenerate with `npm run seed:generate` / `npm run types:generate`
+supabase/seed.sql
+src/lib/data/supabase/database.types.ts

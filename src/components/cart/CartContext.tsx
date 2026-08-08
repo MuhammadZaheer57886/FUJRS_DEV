@@ -1,31 +1,21 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import type { Product } from "@/data/products";
+import type { CatalogItem } from "@/lib/data";
+import { DEFAULT_STITCHER_SLUG } from "@/data/stitchers";
+import { orderTotals } from "@/lib/pricing";
+import { cart } from "@/lib/data";
+import type { CartLine, StitchingSelection } from "@/lib/data";
 
-export interface StitchingSelection {
-  label: string;
-  addOn: number;
-}
-
-export interface CartItem {
-  id: string;
-  slug: string;
-  title: string;
-  image: string;
-  price: number;
-  qty: number;
-  stitching?: StitchingSelection;
-  // Which Master Stitcher this line is assigned to — only meaningful
-  // when `stitching` is set. Used to route bespoke orders to the right
-  // Tailor dashboard queue.
-  stitcherSlug?: string;
-}
+// Re-exported so the many components importing these from the provider keep
+// working. The shapes themselves live in the data layer — one definition.
+export type { StitchingSelection };
+export type CartItem = CartLine;
 
 interface CartContextValue {
   items: CartItem[];
   addItem: (
-    product: Product,
+    product: CatalogItem,
     qty?: number,
     stitching?: StitchingSelection,
     stitcherSlug?: string
@@ -46,7 +36,6 @@ interface CartContextValue {
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
-const STORAGE_KEY = "fujrs-cart";
 
 function lineKeyById(id: string, stitched: boolean) {
   return `${id}::${stitched ? "stitched" : "plain"}`;
@@ -60,24 +49,32 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [mounted, setMounted] = useState(false);
 
-  // The bag lives in the browser — there is no backend to sync it to yet.
+  // Storage lives in the data layer, so this provider holds React state only
+  // and swaps backends with everything else. See BACKEND_SETUP.md §1.
   useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-      if (Array.isArray(stored)) setItems(stored);
-    } catch {
-      setItems([]);
-    }
-    setMounted(true);
+    let active = true;
+    cart
+      .read()
+      .then((lines) => {
+        if (active) setItems(lines);
+      })
+      .finally(() => {
+        if (active) setMounted(true);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
+    // Skip the write until the first read has landed, or an empty initial
+    // state would overwrite a real saved bag.
     if (!mounted) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    void cart.write(items);
   }, [items, mounted]);
 
   function addItem(
-    product: Product,
+    product: CatalogItem,
     qty = 1,
     stitching?: StitchingSelection,
     stitcherSlug?: string
@@ -100,9 +97,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           price: product.price,
           qty,
           stitching,
-          stitcherSlug: stitching
-            ? (stitcherSlug ?? product.stitcher?.slug ?? "khyber-artisans")
-            : undefined,
+          stitcherSlug: stitching ? (stitcherSlug ?? DEFAULT_STITCHER_SLUG) : undefined,
         },
       ];
     });
@@ -153,11 +148,16 @@ export function useCart() {
   return ctx;
 }
 
+/**
+ * Bag totals. The arithmetic itself is in `@/lib/pricing`, because the server
+ * recomputes it when the order is placed and the two must not drift.
+ */
 export function cartTotals(items: CartItem[]) {
-  const fabricTotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
-  const stitchingTotal = items.reduce((sum, i) => sum + (i.stitching?.addOn ?? 0) * i.qty, 0);
-  const subtotal = fabricTotal + stitchingTotal;
-  const shipping = items.length === 0 ? 0 : 350;
-  const total = subtotal + shipping;
-  return { fabricTotal, stitchingTotal, subtotal, shipping, total };
+  return orderTotals(
+    items.map((item) => ({
+      price: item.price,
+      qty: item.qty,
+      stitchingAddOn: item.stitching?.addOn,
+    }))
+  );
 }

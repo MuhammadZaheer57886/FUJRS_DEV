@@ -4,10 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/components/cart/CartContext";
 import { useWishlist } from "@/components/wishlist/WishlistContext";
-import type { Product } from "@/data/products";
+import type { CatalogItem } from "@/lib/data";
 import { Button } from "@/components/ui/Button";
 
-export function PurchasePanel({ product }: { product: Product }) {
+/** FUJRS is single-brand — every piece is made in the same atelier. */
+const ATELIER_NAME = "The FUJRS Atelier";
+
+export function PurchasePanel({ product }: { product: CatalogItem }) {
   const [qty, setQty] = useState(1);
   const [stitched, setStitched] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -15,14 +18,16 @@ export function PurchasePanel({ product }: { product: Product }) {
   const { toggle, isWishlisted, mounted } = useWishlist();
   const wishlisted = mounted && isWishlisted(product.slug);
 
-  const stitchingAddOn = product.stitchingAddOn ?? 12500;
-  const isUnstitched = product.sizes.includes("Unstitched");
+  // Whether stitching is offered is a property of the piece now, not a guess
+  // from its sizes: a product is stitchable when an Admin priced it that way.
+  const stitchingAddOn = product.stitchingAddOn;
+  const offersStitching = product.stitchingEligible && stitchingAddOn !== null;
 
   function handleAddToBag() {
     addItem(
       product,
       qty,
-      stitched
+      stitched && stitchingAddOn !== null
         ? { label: "Signature Style, Standard Measurements", addOn: stitchingAddOn }
         : undefined
     );
@@ -64,40 +69,44 @@ export function PurchasePanel({ product }: { product: Product }) {
             <span className="font-label-sm text-text-muted mb-1">SKU: {product.sku}</span>
           )}
         </div>
+        {/* The description belongs beside the price, not in the accordion
+            below: it's what the shopper reads to decide, and the accordion
+            sections are all collapsed by default. */}
+        <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+          {product.description}
+        </p>
       </section>
 
-      {/* Atelier / Stitcher Badge — adapted from source's marketplace seller badge */}
+      {/* Atelier badge — adapted from source's marketplace seller badge.
+          Every piece is made in-house, so this is the brand, not a per-product
+          seller: which Master Stitcher takes a job is decided when a stitching
+          request is assigned, not on the product row. */}
       <div className="border border-border-subtle p-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-surface-container flex items-center justify-center border border-outline">
-            <span className="font-headline-sm text-primary">
-              {(product.stitcher?.name ?? "FUJRS Atelier").charAt(0)}
-            </span>
+            <span className="font-headline-sm text-primary">{ATELIER_NAME.charAt(0)}</span>
           </div>
           <div>
-            <p className="font-label-md text-primary uppercase">
-              {product.stitcher?.name ?? "The FUJRS Atelier"}
-            </p>
-            <div className="flex items-center gap-1">
-              <span
-                className="material-symbols-outlined text-[14px] text-marketplace-bronze"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                star
-              </span>
-              <span className="font-label-sm text-text-muted">
-                {(product.stitcher?.rating ?? product.rating).toFixed(1)} (
-                {product.stitcher?.reviewCount ?? product.reviewCount} reviews)
-              </span>
-            </div>
+            <p className="font-label-md text-primary uppercase">{ATELIER_NAME}</p>
+            {/* Reviews aren't built yet, so a piece with no rating shows none
+                rather than a zero, which would read as "rated badly". */}
+            {product.rating !== null && (
+              <div className="flex items-center gap-1">
+                <span
+                  className="material-symbols-outlined text-[14px] text-marketplace-bronze"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
+                  star
+                </span>
+                <span className="font-label-sm text-text-muted">
+                  {product.rating.toFixed(1)} ({product.reviewCount} reviews)
+                </span>
+              </div>
+            )}
           </div>
         </div>
         <Link
-          href={
-            product.stitcher
-              ? `/tailoring/stitchers/${product.stitcher.slug}`
-              : "/tailoring/stitchers"
-          }
+          href="/tailoring/stitchers"
           className="font-label-sm text-primary underline underline-offset-4 uppercase tracking-widest hover:text-marketplace-bronze transition-colors"
         >
           View Profile
@@ -105,7 +114,7 @@ export function PurchasePanel({ product }: { product: Product }) {
       </div>
 
       {/* Bespoke Stitching Module */}
-      {isUnstitched && (
+      {offersStitching && (
         <div className="border border-marketplace-bronze/20 bg-surface-container-low p-6 space-y-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
@@ -141,7 +150,7 @@ export function PurchasePanel({ product }: { product: Product }) {
           {stitched && (
             <div className="font-label-md text-marketplace-bronze border-t border-marketplace-bronze/10 pt-4 flex justify-between">
               <span>STITCHING SERVICE</span>
-              <span>+ PKR {stitchingAddOn.toLocaleString()}</span>
+              <span>+ PKR {stitchingAddOn?.toLocaleString()}</span>
             </div>
           )}
         </div>

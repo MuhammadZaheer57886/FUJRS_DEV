@@ -1,11 +1,40 @@
 "use client";
 
 import { useState } from "react";
+import { messages } from "@/lib/data";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 
 export default function ContactPage() {
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Only marks the form as sent once the message is actually stored. It used
+  // to flip on submit, which showed "Message Sent" for a message that went
+  // nowhere — the one thing the coming-soon convention exists to prevent.
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const text = (key: string) => String(form.get(key) ?? "").trim();
+
+    setSending(true);
+    setError(null);
+    try {
+      await messages.sendContact({
+        name: text("name"),
+        email: text("email"),
+        phone: text("phone") || null,
+        subject: text("subject") || null,
+        message: text("message"),
+      });
+      setSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "We couldn't send that message.");
+    } finally {
+      setSending(false);
+    }
+  }
 
   return (
     <div>
@@ -36,13 +65,7 @@ export default function ContactPage() {
               </p>
             </div>
           ) : (
-            <form
-              className="space-y-10"
-              onSubmit={(e) => {
-                e.preventDefault();
-                setSent(true);
-              }}
-            >
+            <form className="space-y-10" onSubmit={(e) => void handleSubmit(e)}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <div>
                   <label
@@ -53,6 +76,7 @@ export default function ContactPage() {
                   </label>
                   <input
                     id="contact-name"
+                    name="name"
                     required
                     className="w-full bg-transparent border-0 border-b border-outline-variant py-3 px-0 font-body text-body-md focus:outline-none focus:border-marketplace-bronze transition-colors"
                     placeholder="e.g. Zoya Malik"
@@ -67,6 +91,7 @@ export default function ContactPage() {
                   </label>
                   <input
                     id="contact-email"
+                    name="email"
                     required
                     type="email"
                     className="w-full bg-transparent border-0 border-b border-outline-variant py-3 px-0 font-body text-body-md focus:outline-none focus:border-marketplace-bronze transition-colors"
@@ -84,6 +109,7 @@ export default function ContactPage() {
                   </label>
                   <select
                     id="contact-subject"
+                    name="subject"
                     className="w-full bg-transparent border-0 border-b border-outline-variant py-3 px-0 font-body text-body-md focus:outline-none focus:border-marketplace-bronze transition-colors"
                   >
                     <option>Order Status</option>
@@ -101,6 +127,7 @@ export default function ContactPage() {
                   </label>
                   <input
                     id="contact-phone"
+                    name="phone"
                     className="w-full bg-transparent border-0 border-b border-outline-variant py-3 px-0 font-body text-body-md focus:outline-none focus:border-marketplace-bronze transition-colors"
                     placeholder="+92 300 1234567"
                   />
@@ -115,14 +142,20 @@ export default function ContactPage() {
                 </label>
                 <textarea
                   id="contact-message"
+                  name="message"
                   required
                   rows={4}
                   className="w-full bg-transparent border-0 border-b border-outline-variant py-3 px-0 font-body text-body-md focus:outline-none focus:border-marketplace-bronze transition-colors resize-none"
                   placeholder="How may we assist you today?"
                 />
               </div>
-              <Button type="submit" variant="primary" className="w-full !py-5">
-                Send Message
+              {error && (
+                <p role="alert" className="font-label-sm text-label-sm text-error">
+                  {error}
+                </p>
+              )}
+              <Button type="submit" variant="primary" className="w-full !py-5" disabled={sending}>
+                {sending ? "Sending…" : "Send Message"}
               </Button>
             </form>
           )}

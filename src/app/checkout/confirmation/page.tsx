@@ -6,7 +6,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LinkButton } from "@/components/ui/Button";
 import { StatusScreen } from "@/components/ui/StatusScreen";
-import { getOrder, type LocalOrder } from "@/lib/local/orders";
+import { formatOrderNumber } from "@/lib/orderNumber";
+import { orders as orderStore } from "@/lib/data";
+import type { Order } from "@/lib/data";
+import { LoadingScreen } from "@/components/ui/Loading";
 
 const timelineSteps = [
   {
@@ -39,7 +42,7 @@ function OrderConfirmation() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const orderId = searchParams.get("orderId");
-  const [order, setOrder] = useState<LocalOrder | null>(null);
+  const [order, setOrder] = useState<Order | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -47,12 +50,22 @@ function OrderConfirmation() {
       router.replace("/account");
       return;
     }
-    setOrder(getOrder(orderId));
-    setLoaded(true);
+    let active = true;
+    orderStore
+      .get(orderId)
+      .then((found) => {
+        if (active) setOrder(found);
+      })
+      .finally(() => {
+        if (active) setLoaded(true);
+      });
+    return () => {
+      active = false;
+    };
   }, [orderId, router]);
 
   if (!loaded) {
-    return <StatusScreen pulse icon="receipt_long" title="Loading your order…" />;
+    return <LoadingScreen label="Loading your order" />;
   }
 
   if (!order) {
@@ -84,8 +97,8 @@ function OrderConfirmation() {
         <div className="flex flex-col items-center gap-2">
           <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">
             Thank you for choosing FUJRS. Your order{" "}
-            <span className="font-bold text-primary">#{order.id.slice(-8).toUpperCase()}</span> has
-            been successfully placed and is now being curated by our master artisans.
+            <span className="font-bold text-primary">{formatOrderNumber(order.orderNumber)}</span>{" "}
+            has been successfully placed and is now being curated by our master artisans.
           </p>
           <div className="mt-8 flex gap-4 flex-wrap justify-center">
             <LinkButton href="/account" variant="primary" className="!px-10 !py-4">
@@ -172,6 +185,14 @@ function OrderConfirmation() {
                 <span>PKR {order.total.toLocaleString()}</span>
               </div>
             </div>
+            {order.referralCode && (
+              <p className="mt-6 border-t border-border-subtle pt-4 font-label-sm text-label-sm text-on-surface-variant">
+                Referred by{" "}
+                <span className="uppercase tracking-widest text-marketplace-bronze">
+                  {order.referralCode}
+                </span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -273,7 +294,7 @@ function OrderConfirmation() {
 
 export default function OrderConfirmationPage() {
   return (
-    <Suspense fallback={<StatusScreen pulse icon="receipt_long" title="Loading your order…" />}>
+    <Suspense fallback={<LoadingScreen label="Loading your order" />}>
       <OrderConfirmation />
     </Suspense>
   );

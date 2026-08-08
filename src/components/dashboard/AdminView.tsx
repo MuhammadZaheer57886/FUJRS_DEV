@@ -4,36 +4,48 @@ import { useEffect, useState } from "react";
 import { RevenueTrendChart } from "@/components/dashboard/charts/RevenueTrendChart";
 import { CategoryBarChart } from "@/components/dashboard/charts/CategoryBarChart";
 import { CatalogManager } from "@/components/dashboard/CatalogManager";
-import { DEMO_STATS } from "@/lib/auth/demoData";
-import { listByStatus } from "@/lib/local/catalog";
+import { OrderManager } from "@/components/dashboard/OrderManager";
+import { catalog, stats as statsStore, users as userStore } from "@/lib/data";
+import type { DashboardStats } from "@/lib/data";
 
 export function AdminView() {
-  // Everything here reads fixtures — there is no backend to query yet, and
-  // actions update local state only.
-  const [data, setData] = useState<typeof DEMO_STATS | null>(null);
-  const [counts, setCounts] = useState<{ published: number; pending: number } | null>(null);
+  const [data, setData] = useState<DashboardStats | null>(null);
+  const [productCount, setProductCount] = useState<number | null>(null);
+  const [vendorCount, setVendorCount] = useState<number | null>(null);
 
   useEffect(() => {
-    setData(DEMO_STATS);
-    setCounts({
-      published: listByStatus("APPROVED").length,
-      pending: listByStatus("PENDING").length,
-    });
+    let active = true;
+
+    void (async () => {
+      const [overview, products] = await Promise.all([statsStore.overview(), catalog.list()]);
+      if (!active) return;
+      setData(overview);
+      setProductCount(products.length);
+    })();
+
+    // Listing users is Super-Admin-only, so an Admin gets nothing back. An em
+    // dash is the honest answer there — better than a count they can't see.
+    void userStore
+      .list()
+      .then((all) => {
+        if (active) setVendorCount(all.filter((u) => u.role === "VENDOR").length);
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const stats = [
     { label: "Total Orders", value: data ? data.totalOrders.toLocaleString() : "—" },
     { label: "Total Revenue", value: data ? `PKR ${data.totalRevenue.toLocaleString()}` : "—" },
-    { label: "Catalogue Products", value: counts ? String(counts.published) : "—" },
-    { label: "Awaiting Review", value: counts ? String(counts.pending) : "—" },
+    { label: "Catalogue Products", value: productCount === null ? "—" : String(productCount) },
+    { label: "Active Vendors", value: vendorCount === null ? "—" : String(vendorCount) },
   ];
 
   return (
     <div>
-      <p className="text-label-sm text-marketplace-bronze uppercase tracking-widest mb-4">
-        Sample data — this dashboard isn&apos;t connected to a database yet.
-      </p>
-
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map((stat) => (
           <div key={stat.label} className="border border-border-subtle p-6">
@@ -58,7 +70,7 @@ export function AdminView() {
                   value: d.revenue,
                 }))}
                 valueFormatter={(v) => `PKR ${v.toLocaleString()}`}
-                emptyMessage={data ? "No revenue in this window yet." : "Loading…"}
+                emptyMessage="No revenue in this window yet."
               />
             </div>
           </div>
@@ -70,7 +82,7 @@ export function AdminView() {
                   label: s.status,
                   value: s.count,
                 }))}
-                emptyMessage={data ? "No orders placed yet." : "Loading…"}
+                emptyMessage="No orders placed yet."
               />
             </div>
           </div>
@@ -78,47 +90,7 @@ export function AdminView() {
       </div>
 
       <div className="mt-10">
-        <h2 className="font-display text-headline-sm">Recent Orders</h2>
-        <div className="mt-4 overflow-x-auto border border-border-subtle">
-          <table className="w-full text-left text-body-md">
-            <thead className="bg-surface-container-low text-label-sm uppercase text-text-muted">
-              <tr>
-                <th className="px-4 py-3">Order</th>
-                <th className="px-4 py-3">Customer</th>
-                <th className="px-4 py-3">Items</th>
-                <th className="px-4 py-3">Total</th>
-                <th className="px-4 py-3">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border-subtle">
-              {!data && (
-                <tr>
-                  <td className="px-4 py-6 text-text-muted" colSpan={5}>
-                    Loading…
-                  </td>
-                </tr>
-              )}
-              {data?.recentOrders.length === 0 && (
-                <tr>
-                  <td className="px-4 py-6 text-text-muted" colSpan={5}>
-                    No orders placed yet.
-                  </td>
-                </tr>
-              )}
-              {data?.recentOrders.map((order) => (
-                <tr key={order.id}>
-                  <td className="px-4 py-3">#{order.id.slice(-8).toUpperCase()}</td>
-                  <td className="px-4 py-3">{order.customer}</td>
-                  <td className="px-4 py-3">{order.itemCount}</td>
-                  <td className="px-4 py-3">PKR {order.total.toLocaleString()}</td>
-                  <td className="px-4 py-3">
-                    <span className="text-label-sm uppercase text-text-muted">{order.status}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <OrderManager />
       </div>
 
       <div className="mt-10">

@@ -4,16 +4,34 @@ import { EditorialGallery } from "@/components/product/EditorialGallery";
 import { PurchasePanel } from "@/components/product/PurchasePanel";
 import { SpecsAccordion } from "@/components/product/SpecsAccordion";
 import { CompleteTheLook } from "@/components/product/CompleteTheLook";
-import { getProductBySlug, products } from "@/data/products";
+import { ProductReviews } from "@/components/product/ProductReviews";
+import { catalogRead } from "@/lib/data/server";
+import type { ProductGender } from "@/lib/data";
 
-export function generateStaticParams() {
+/**
+ * There is no /unisex collection, so those pieces breadcrumb to New Arrivals
+ * rather than a 404 — the gender enum has three values, the site has two
+ * gendered collections.
+ */
+const collectionHref = (gender: ProductGender) =>
+  gender === "Unisex" ? "/new-arrivals" : `/${gender.toLowerCase()}`;
+
+/**
+ * Pre-renders a page per product at build time. A piece published after the
+ * build still works — `dynamicParams` defaults to true, so an unknown slug is
+ * rendered on demand and cached — but the catalogue as it stands ships static.
+ */
+export async function generateStaticParams() {
+  const products = await catalogRead.list();
   return products.map((p) => ({ slug: p.slug }));
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = await params;
-  const product = getProductBySlug(resolvedParams.slug);
+  const product = await catalogRead.getBySlug(resolvedParams.slug);
   if (!product) notFound();
+
+  const products = await catalogRead.list();
 
   // "Complete the Look": same-category pieces first, falling back to
   // accessories so the section is never empty.
@@ -38,7 +56,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           Home
         </Link>
         <span className="text-[10px]">/</span>
-        <Link href={`/${product.gender.toLowerCase()}`} className="hover:text-primary">
+        <Link href={collectionHref(product.gender)} className="hover:text-primary">
           {product.gender}
         </Link>
         <span className="text-[10px]">/</span>
@@ -55,6 +73,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <SpecsAccordion product={product} />
         </div>
       </div>
+
+      <ProductReviews productSlug={product.slug} />
 
       <CompleteTheLook items={completeTheLook} />
     </div>

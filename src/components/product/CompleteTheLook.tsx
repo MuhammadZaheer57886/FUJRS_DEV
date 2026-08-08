@@ -1,9 +1,9 @@
 import Link from "next/link";
-import Image from "next/image";
 import { AddToBagButton } from "@/components/product/AddToBagButton";
-import type { Product } from "@/data/products";
+import type { CatalogItem } from "@/lib/data";
+import { ProductImage } from "@/components/ui/ProductImage";
 
-export function CompleteTheLook({ items }: { items: Product[] }) {
+export function CompleteTheLook({ items }: { items: CatalogItem[] }) {
   if (items.length === 0) return null;
 
   return (
@@ -22,7 +22,7 @@ export function CompleteTheLook({ items }: { items: Product[] }) {
           <div key={item.id} className="group">
             <Link href={`/products/${item.slug}`} className="block">
               <div className="aspect-[4/5] bg-surface-container overflow-hidden relative mb-4">
-                <Image
+                <ProductImage
                   src={item.images[0]}
                   alt={item.title}
                   fill

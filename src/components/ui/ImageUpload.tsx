@@ -3,48 +3,17 @@
 import Image from "next/image";
 import { useId, useRef, useState } from "react";
 
-type Shape = "circle" | "portrait";
+import {
+  ACCEPTED_IMAGE_TYPES,
+  MAX_EDGE_PX,
+  downscaleToDataUrl,
+  type ImageShape,
+} from "@/lib/downscaleImage";
 
-const SHAPE_CLASS: Record<Shape, string> = {
+const SHAPE_CLASS: Record<ImageShape, string> = {
   circle: "h-28 w-28 rounded-full",
   portrait: "h-40 w-32",
 };
-
-/**
- * Images are held as data URLs in localStorage until real file storage exists,
- * so they're downscaled hard on the way in — a raw phone photo would blow the
- * ~5MB quota on its own.
- */
-const MAX_EDGE_PX: Record<Shape, number> = {
-  circle: 320,
-  portrait: 800,
-};
-
-const JPEG_QUALITY = 0.8;
-const ACCEPTED = "image/png,image/jpeg,image/webp";
-
-function downscaleToDataUrl(file: File, maxEdge: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("read-failed"));
-    reader.onload = () => {
-      const img = new window.Image();
-      img.onerror = () => reject(new Error("decode-failed"));
-      img.onload = () => {
-        const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return reject(new Error("canvas-unavailable"));
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", JPEG_QUALITY));
-      };
-      img.src = reader.result as string;
-    };
-    reader.readAsDataURL(file);
-  });
-}
 
 export function ImageUpload({
   label,
@@ -57,7 +26,7 @@ export function ImageUpload({
   label: string;
   value: string | null;
   onChange: (dataUrl: string | null) => void;
-  shape?: Shape;
+  shape?: ImageShape;
   hint?: string;
   alt?: string;
 }) {
@@ -75,7 +44,9 @@ export function ImageUpload({
     setError(null);
     setBusy(true);
     try {
-      onChange(await downscaleToDataUrl(file, MAX_EDGE_PX[shape]));
+      // Avatars are square and rendered at a fixed size, so only the data URL
+      // matters here — the dimensions are for product images.
+      onChange((await downscaleToDataUrl(file, MAX_EDGE_PX[shape])).dataUrl);
     } catch {
       setError("That image couldn't be processed. Try another file.");
     } finally {
@@ -114,7 +85,7 @@ export function ImageUpload({
             ref={inputRef}
             id={inputId}
             type="file"
-            accept={ACCEPTED}
+            accept={ACCEPTED_IMAGE_TYPES}
             className="sr-only"
             onChange={(e) => handleFile(e.target.files?.[0])}
           />

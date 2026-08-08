@@ -3,15 +3,22 @@
 A Next.js storefront and staff dashboard for a single-brand fashion &
 bespoke-tailoring business.
 
-> **UI-only build.** There is no backend, database, auth provider, or
-> payment provider. The whole app runs in the browser so the UI/UX can be
-> finalised first — the schema and backend will be designed against the
-> finished screens. Clone, `npm install`, `npm run dev`, done: no `.env`, no
-> services to provision.
+> **The app still runs entirely in the browser.** Every screen reads and
+> writes `localStorage`; there is no auth or payment provider. Clone,
+> `npm install`, `npm run dev`, done — no `.env`, nothing to provision.
+>
+> **The database now exists but isn't connected yet.** The Supabase schema is
+> designed and deployed (`supabase/migrations/`, 10 migrations applied), and
+> the next step is the data-layer adapters that let the app read it. Until
+> those land, the browser is still the source of truth.
 
-Product requirements are in [REQUIREMENTS.md](./REQUIREMENTS.md); status
-against that spec is in [TASKS.md](./TASKS.md); the frontend audit log is in
-[UI_AUDIT.md](./UI_AUDIT.md).
+| Doc | What it's for |
+|---|---|
+| [REQUIREMENTS.md](./REQUIREMENTS.md) | The product spec — what the client asked for |
+| [TASKS.md](./TASKS.md) | What's actually built against that spec |
+| [SCHEMA.md](./SCHEMA.md) | Database reference — every table and why it exists |
+| [BACKEND_SETUP.md](./BACKEND_SETUP.md) | Supabase mechanics + the swappable data layer |
+| [CLAUDE.md](./CLAUDE.md) | Conventions for anyone (or any agent) working here |
 
 ## Stack
 
@@ -26,35 +33,51 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-### Demo sign-in
+### Getting a staff account
 
-Any password works. The account list is also shown on `/login`.
+There are no demo logins. How you get one depends on the backend:
 
-| Email | Role |
-|---|---|
-| `user@gmail.com` | Customer |
-| `admin@gmail.com` | Admin |
-| `vendor@gmail.com` | Vendor |
-| `tailor@gmail.com` | Tailor |
-| `superadmin@gmail.com` | Super Admin |
+**On browser storage (`NEXT_PUBLIC_DATA_BACKEND=local`)** — register at
+`/register`. **The first account on a fresh browser becomes Super Admin**, and
+from there you create Admin, Vendor and Tailor accounts in the dashboard. Any
+password works; passwords are deliberately never stored, because there is
+nothing to authenticate against. Clearing site data resets it.
 
-Registering on `/register` creates a browser-local customer account.
-Passwords are deliberately never stored — there's nothing to authenticate
-against yet.
+**On Supabase** — register at `/register`, then promote yourself once in the
+SQL editor with [supabase/promote-staff.sql](./supabase/promote-staff.sql).
+That step is deliberately manual: sign-up hard-codes `CUSTOMER` and never reads
+a role from the client, so a self-assigned Super Admin isn't possible. Every
+account after the first is created from the dashboard.
 
 ## Where the data lives
 
-Everything is in `localStorage`, behind small modules so there's exactly one
-place to swap when the real backend arrives:
+Everything is in `localStorage`, behind a single data layer. Components import
+from `@/lib/data` and never learn which backend is running, so connecting
+Supabase means writing adapters — not touching components.
 
-| Data | Module | Key |
+```
+src/lib/data/
+  types.ts     domain shapes
+  ports.ts     async interfaces every backend implements
+  local/       localStorage adapter (all of it, via local/storage.ts)
+  index.ts     picks the adapter
+```
+
+| Store | Import | Key |
 |---|---|---|
+| Orders | `orders` | `fujrs-orders` |
+| Accounts + saved address | `profiles` | `fujrs-accounts` |
+| Catalogue additions | `catalog` | `fujrs-catalog` |
+| Bag | `cart` | `fujrs-cart` |
+| Wishlist | `wishlist` | `fujrs-wishlist` |
+| Measurements | `tailoring` | `fujrs-tailoring-config` |
+| Affiliate links | `affiliate` | `fujrs-affiliate-links` |
+| Captured referral | `referrals` | `fujrs-referral` |
+| Payout requests | `payouts` | `fujrs-payout-requests` |
 | Session | `src/lib/auth/session.ts` | `fujrs-session` |
-| Accounts + saved address | `src/lib/local/profile.ts` | `fujrs-accounts` |
-| Orders | `src/lib/local/orders.ts` | `fujrs-orders` |
-| Bag | `src/components/cart/CartContext.tsx` | `fujrs-cart` |
-| Wishlist | `src/components/wishlist/WishlistContext.tsx` | `fujrs-wishlist` |
-| Measurements | `src/components/tailoring/TailoringContext.tsx` | `fujrs-tailoring-config` |
+
+Every method is `async` even on browser storage — deliberately, so components
+handle awaiting once rather than changing again when the network arrives.
 
 The four role dashboards render fixtures from `src/lib/auth/demoData.ts` and
 say so on screen. Their actions (approve draft, change stitching status,
@@ -125,18 +148,30 @@ whole app:
 
 ## Deployment
 
-Deploys as a static-first Next.js app with no environment variables. Use
-`npm ci` as the install command for deterministic builds.
+Deploys as a static-first Next.js app. Use `npm ci` as the install command for
+deterministic builds.
+
+No environment variables are needed while the app runs on browser storage.
+Once the Supabase adapters exist it needs `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_DATA_BACKEND=supabase` — see
+[.env.example](./.env.example).
 
 Product images currently reference `lh3.googleusercontent.com` (a
 design-tool preview CDN, whitelisted in `next.config.mjs`). Migrate to your
 own asset storage (Vercel Blob, Cloudinary, S3) before relying on this in
 production — it isn't meant for long-term hosting.
 
-## When the backend arrives
+## Connecting the backend
 
-1. Design the schema against these finished screens.
-2. Replace each module in the table above with an API client — the call
-   sites don't change.
-3. Re-validate every payload server-side. The client-side validation in
-   these forms is UX, not a security boundary.
+1. ~~Design the schema against these finished screens.~~ Done —
+   [SCHEMA.md](./SCHEMA.md), deployed via `supabase/migrations/`.
+2. Make the modules in the table above `async` while still on `localStorage`,
+   so components change once rather than twice.
+3. Move `CartContext`, `WishlistContext` and `TailoringContext` storage into
+   the data layer — they're the three that still hold `localStorage` inline.
+4. Write the Supabase adapters behind the same interfaces, then flip
+   `NEXT_PUBLIC_DATA_BACKEND`. No component changes.
+5. Re-validate every payload server-side. The client-side validation in these
+   forms is UX, not a security boundary.
+
+Full detail in [BACKEND_SETUP.md](./BACKEND_SETUP.md).

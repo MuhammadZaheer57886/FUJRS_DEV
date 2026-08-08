@@ -1,39 +1,46 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import type { Product } from "@/data/products";
+import type { CatalogItem } from "@/lib/data";
+import { wishlist } from "@/lib/data";
 
 interface WishlistContextValue {
   slugs: string[];
-  toggle: (product: Product) => void;
+  toggle: (product: CatalogItem) => void;
   isWishlisted: (slug: string) => boolean;
   mounted: boolean;
 }
 
 const WishlistContext = createContext<WishlistContextValue | null>(null);
-const STORAGE_KEY = "fujrs-wishlist";
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [slugs, setSlugs] = useState<string[]>([]);
   const [mounted, setMounted] = useState(false);
 
-  // Wishlist lives in the browser — there is no backend to sync it to yet.
+  // Storage lives in the data layer; this provider holds React state only.
   useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-      if (Array.isArray(stored)) setSlugs(stored);
-    } catch {
-      setSlugs([]);
-    }
-    setMounted(true);
+    let active = true;
+    wishlist
+      .read()
+      .then((saved) => {
+        if (active) setSlugs(saved);
+      })
+      .finally(() => {
+        if (active) setMounted(true);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
+    // Skip until the first read lands, or an empty initial state would
+    // overwrite a real saved wishlist.
     if (!mounted) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(slugs));
+    void wishlist.write(slugs);
   }, [slugs, mounted]);
 
-  function toggle(product: Product) {
+  function toggle(product: CatalogItem) {
     setSlugs((prev) =>
       prev.includes(product.slug) ? prev.filter((s) => s !== product.slug) : [...prev, product.slug]
     );

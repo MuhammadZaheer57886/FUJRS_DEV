@@ -4,15 +4,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   useTailoring,
-  MEASUREMENT_FIELDS,
   NECKLINES,
   SLEEVES,
   HEMLINES,
   GARMENT_PRICES,
-  type MeasurementField,
 } from "@/components/tailoring/TailoringContext";
+import {
+  MEASUREMENT_FIELDS,
+  isMeasurementSetComplete,
+  type MeasurementField,
+  type MeasurementSet,
+} from "@/lib/measurements";
 import { getStitcherBySlug, stitchers } from "@/data/stitchers";
 import { Button } from "@/components/ui/Button";
+import { ReferencePhotos } from "@/components/tailoring/ReferencePhotos";
 
 const measurementGuides: Record<string, string> = {
   Chest:
@@ -35,7 +40,7 @@ export default function ConfigurePage() {
   const { config, setConfig } = useTailoring();
 
   const [garmentType, setGarmentType] = useState(config.garmentType);
-  const [measurements, setMeasurements] = useState<Record<string, string>>(config.measurements);
+  const [measurements, setMeasurements] = useState<MeasurementSet>(config.measurements);
   const [activeField, setActiveField] = useState<MeasurementField>(MEASUREMENT_FIELDS[0]);
   const [neckline, setNeckline] = useState(config.neckline);
   const [sleeve, setSleeve] = useState(config.sleeve);
@@ -49,7 +54,7 @@ export default function ConfigurePage() {
   const total = basePrice + necklineOption.price + sleeveOption.price + hemlineOption.price;
   const stitcher = getStitcherBySlug(stitcherSlug) ?? stitchers[stitchers.length - 1];
 
-  const measurementsComplete = MEASUREMENT_FIELDS.every((f) => measurements[f]?.trim());
+  const measurementsComplete = isMeasurementSetComplete(measurements);
 
   function handleConfirm() {
     setConfig({
@@ -177,6 +182,8 @@ export default function ConfigurePage() {
               })}
             </div>
           </div>
+
+          <ReferencePhotos />
         </div>
 
         {/* Right: Style Selections & Summary */}

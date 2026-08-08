@@ -1,60 +1,27 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { tailoring } from "@/lib/data";
+import type { TailoringConfig } from "@/lib/data";
+import { DEFAULT_STITCHER_SLUG } from "@/data/stitchers";
+import {
+  DEFAULT_GARMENT_TYPE,
+  GARMENT_PRICES,
+  HEMLINES,
+  NECKLINES,
+  SLEEVES,
+  bespokePrice,
+} from "@/lib/tailoringOptions";
 
-export interface TailoringConfig {
-  measurements: Record<string, string>;
-  neckline: string;
-  necklinePrice: number;
-  sleeve: string;
-  sleevePrice: number;
-  hemline: string;
-  hemlinePrice: number;
-  garmentType: string;
-  basePrice: number;
-  stitcherSlug: string;
-}
+// Re-exported so existing importers keep working; the shape lives in the data
+// layer, where it maps onto a `stitching_requests` row.
+export type { TailoringConfig };
 
-export const MEASUREMENT_FIELDS = [
-  "Chest",
-  "Waist",
-  "Hips",
-  "Shoulder",
-  "Arm Length",
-  "Length",
-  "Bicep",
-  "Neck",
-  "Front Length",
-  "Back Length",
-  "Trouser Length",
-  "Inseam",
-] as const;
-
-export type MeasurementField = (typeof MEASUREMENT_FIELDS)[number];
-
-export const NECKLINES = [
-  { label: "Boat Neck", icon: "horizontal_rule", price: 0 },
-  { label: "Mandarin", icon: "change_history", price: 0 },
-  { label: "Deep V", icon: "keyboard_arrow_down", price: 1500 },
-];
-
-export const SLEEVES = [
-  { label: "Full Length", price: 0 },
-  { label: "Bell Cuff", price: 2000 },
-  { label: "Quarter", price: 0 },
-];
-
-export const HEMLINES = [
-  { label: "Straight Classic", icon: "remove", price: 0 },
-  { label: "Scalloped Edge", icon: "auto_awesome", price: 2500 },
-];
-
-export const GARMENT_PRICES: Record<string, number> = {
-  "2-Piece Suit (Kurta & Trousers)": 12500,
-  "3-Piece Luxury Suit": 16500,
-  "Formal Saree Blouse": 22000,
-  "Bridal Wear / Pishwas": 42000,
-};
+// The options and their prices live in `@/lib/tailoringOptions`, which is pure
+// so the ORDER ROUTE can import it and re-price a bespoke line from the
+// customer's choices. Re-exported here so the existing screens keep their
+// import path.
+export { NECKLINES, SLEEVES, HEMLINES, GARMENT_PRICES };
 
 const defaultConfig: TailoringConfig = {
   measurements: {},
@@ -64,9 +31,9 @@ const defaultConfig: TailoringConfig = {
   sleevePrice: SLEEVES[0].price,
   hemline: HEMLINES[0].label,
   hemlinePrice: HEMLINES[0].price,
-  garmentType: "3-Piece Luxury Suit",
-  basePrice: GARMENT_PRICES["3-Piece Luxury Suit"],
-  stitcherSlug: "khyber-artisans",
+  garmentType: DEFAULT_GARMENT_TYPE,
+  basePrice: GARMENT_PRICES[DEFAULT_GARMENT_TYPE],
+  stitcherSlug: DEFAULT_STITCHER_SLUG,
 };
 
 interface TailoringContextValue {
@@ -77,31 +44,35 @@ interface TailoringContextValue {
 }
 
 const TailoringContext = createContext<TailoringContextValue | null>(null);
-const STORAGE_KEY = "fujrs-tailoring-config";
 
 export function TailoringProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfigState] = useState<TailoringConfig>(defaultConfig);
   const [mounted, setMounted] = useState(false);
 
-  // Measurements live in the browser — there is no backend to sync them to yet.
+  // Storage lives in the data layer; this provider holds React state only.
   useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
-      if (stored) setConfigState(stored);
-    } catch {
-      /* ignore */
-    }
-    setMounted(true);
+    let active = true;
+    tailoring
+      .read()
+      .then((stored) => {
+        if (active && stored) setConfigState(stored);
+      })
+      .finally(() => {
+        if (active) setMounted(true);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   function setConfig(c: TailoringConfig) {
     setConfigState(c);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(c));
-    }
+    void tailoring.write(c);
   }
 
-  const total = config.basePrice + config.necklinePrice + config.sleevePrice + config.hemlinePrice;
+  // Derived from the choices, not summed from the stored prices, so the figure
+  // on screen is the same one the order route will charge.
+  const total = bespokePrice(config);
 
   return (
     <TailoringContext.Provider value={{ config, setConfig, total, mounted }}>

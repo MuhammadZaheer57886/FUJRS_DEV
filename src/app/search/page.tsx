@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { ProductFilterGrid } from "@/components/ui/ProductFilterGrid";
-import { products } from "@/data/products";
+import { catalogRead } from "@/lib/data/server";
 
-function searchProducts(query: string) {
+async function searchProducts(query: string) {
   const q = query.trim().toLowerCase();
   if (!q) return [];
+  const products = await catalogRead.list();
   return products.filter((p) =>
     [p.title, p.fabric, p.category, p.color].some((field) => field.toLowerCase().includes(q))
   );
@@ -17,7 +18,7 @@ export default async function SearchPage({
 }) {
   const resolvedSearchParams = await searchParams;
   const query = resolvedSearchParams.q ?? "";
-  const results = searchProducts(query);
+  const results = await searchProducts(query);
 
   return (
     <div className="container-luxe py-16">

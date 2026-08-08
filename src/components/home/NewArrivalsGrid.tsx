@@ -1,10 +1,17 @@
 import Link from "next/link";
-import Image from "next/image";
-import { products } from "@/data/products";
+import { catalogRead } from "@/lib/data/server";
 import { AddToBagButton } from "@/components/product/AddToBagButton";
+import { ProductImage } from "@/components/ui/ProductImage";
 
-export function NewArrivalsGrid() {
-  const items = products.filter((p) => p.isNewArrival).slice(0, 4);
+/** Homepage strip: the four newest pieces flagged as new arrivals. */
+const HOMEPAGE_SLOTS = 4;
+
+export async function NewArrivalsGrid() {
+  const items = (await catalogRead.list()).filter((p) => p.isNewArrival).slice(0, HOMEPAGE_SLOTS);
+
+  // A homepage band headed "New Arrivals" with nothing under it reads as a
+  // broken page. With no arrivals to show, the section simply isn't there.
+  if (items.length === 0) return null;
 
   return (
     <section className="py-margin-desktop bg-surface-container-low">
@@ -28,7 +35,7 @@ export function NewArrivalsGrid() {
             <div key={product.id} className="product-card group relative">
               <div className="aspect-[4/5] bg-surface-container-highest overflow-hidden relative">
                 <Link href={`/products/${product.slug}`} className="block h-full w-full">
-                  <Image
+                  <ProductImage
                     src={product.images[0]}
                     alt={product.title}
                     fill

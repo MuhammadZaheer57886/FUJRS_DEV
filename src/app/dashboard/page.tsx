@@ -8,6 +8,7 @@ import { VendorView } from "@/components/dashboard/VendorView";
 import { TailorView } from "@/components/dashboard/TailorView";
 import { SuperAdminView } from "@/components/dashboard/SuperAdminView";
 import { ROLE_LABELS } from "@/lib/auth/roles";
+import { LoadingScreen } from "@/components/ui/Loading";
 
 type Role = "SUPER_ADMIN" | "ADMIN" | "VENDOR" | "TAILOR";
 
@@ -16,7 +17,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<Role | null>(null);
 
   if (status === "loading") {
-    return <div className="container-luxe py-24 text-center text-text-muted">Loading…</div>;
+    return <LoadingScreen />;
   }
 
   if (status === "unauthenticated") {
@@ -73,9 +74,9 @@ export default function DashboardPage() {
       <h1 className="mt-2 font-display text-headline-md">Dashboard</h1>
       <p className="mt-2 text-body-md text-text-muted">
         Signed in as {session?.user.name} — {ROLE_LABELS[role]}.{" "}
-        {session?.user.isDemo
-          ? "This is a demo session; the data below is sample data."
-          : "All data below is live from the database."}
+        {process.env.NEXT_PUBLIC_DATA_BACKEND === "supabase"
+          ? "Connected to the database — everything here is live."
+          : "Running on browser storage — nothing here is shared or permanent."}
       </p>
 
       {availableRoles.length > 1 && (

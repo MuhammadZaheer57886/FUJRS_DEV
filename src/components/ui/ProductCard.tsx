@@ -1,14 +1,14 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { useCart } from "@/components/cart/CartContext";
 import { useWishlist } from "@/components/wishlist/WishlistContext";
-import type { Product } from "@/data/products";
+import type { CatalogItem } from "@/lib/data";
+import { ProductImage } from "@/components/ui/ProductImage";
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({ product }: { product: CatalogItem }) {
   const { addItem } = useCart();
   const { toggle, isWishlisted, mounted } = useWishlist();
   const wishlisted = mounted && isWishlisted(product.slug);
@@ -17,14 +17,14 @@ export function ProductCard({ product }: { product: Product }) {
     <div className="group">
       <Link href={`/products/${product.slug}`} className="block">
         <div className="relative aspect-[4/5] w-full overflow-hidden bg-surface-container">
-          <Image
+          <ProductImage
             src={product.images[0]}
             alt={product.title}
             fill
             sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
             className="object-cover transition-opacity duration-300 group-hover:opacity-0"
           />
-          <Image
+          <ProductImage
             src={product.images[1] ?? product.images[0]}
             alt=""
             fill

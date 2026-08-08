@@ -2,7 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { ProductCard } from "./ProductCard";
-import type { Product } from "@/data/products";
+import type { CatalogItem } from "@/lib/data";
+import { EmptyCatalogue } from "@/components/ui/EmptyCatalogue";
+import { Swatch } from "@/components/ui/OptionPickers";
+import {
+  COLOR_FAMILIES,
+  COLOR_FAMILY_LABELS,
+  COLOR_FAMILY_SWATCHES,
+  type ColorFamily,
+} from "@/lib/productTaxonomy";
 
 type SortOption = "featured" | "price-asc" | "price-desc";
 
@@ -47,20 +55,81 @@ function FilterGroup({
   );
 }
 
-export function ProductFilterGrid({ products }: { products: Product[] }) {
+/**
+ * The colour facet: a swatch and a name per family.
+ *
+ * A swatch alone would carry the whole meaning in colour, which is unusable for
+ * anyone who can't distinguish two of them — so the name is always there as
+ * text, and the checkbox keeps the row operable by keyboard exactly like the
+ * other facets.
+ */
+function ColorFamilyFilter({
+  families,
+  selected,
+  onToggle,
+}: {
+  families: { family: ColorFamily; label: string; hex: string }[];
+  selected: ColorFamily[];
+  onToggle: (family: ColorFamily) => void;
+}) {
+  if (families.length === 0) return null;
+
+  return (
+    <div className="border-b border-outline-variant pb-6">
+      <h3 className="label-caps mb-4 text-text-muted">Color</h3>
+      <ul className="space-y-2.5">
+        {families.map(({ family, label, hex }) => (
+          <li key={family}>
+            <label className="flex cursor-pointer items-center gap-2.5 text-body-md">
+              <input
+                type="checkbox"
+                checked={selected.includes(family)}
+                onChange={() => onToggle(family)}
+                className="h-4 w-4 accent-primary"
+              />
+              <Swatch hex={hex} size={16} />
+              {label}
+            </label>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export function ProductFilterGrid({ products }: { products: CatalogItem[] }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   const [fabrics, setFabrics] = useState<string[]>([]);
-  const [colors, setColors] = useState<string[]>([]);
+  const [families, setFamilies] = useState<ColorFamily[]>([]);
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
   const [sort, setSort] = useState<SortOption>("featured");
 
   const options = useMemo(() => {
     const uniq = (values: string[]) => Array.from(new Set(values)).sort();
+
+    // Colours are faceted by FAMILY, not by name. Filtering on the name gave a
+    // row per marketing name — "Deep Navy", "Midnight Blue" and "Pastel Blue"
+    // were three separate blues, and four different off-whites sat apart from
+    // each other. The family collapses those, so this list stays short however
+    // many colours the catalogue grows to.
+    const families = COLOR_FAMILIES.filter((family) =>
+      products.some((p) => p.colorFamily === family)
+    ).map((family) => ({
+      family,
+      label: COLOR_FAMILY_LABELS[family],
+      // The swatch of the only colour in that family, so a family holding just
+      // "Emerald" shows emerald rather than a generic green.
+      hex:
+        uniq(products.filter((p) => p.colorFamily === family).map((p) => p.colorHex)).length === 1
+          ? products.find((p) => p.colorFamily === family)!.colorHex
+          : COLOR_FAMILY_SWATCHES[family],
+    }));
+
     return {
       categories: uniq(products.map((p) => p.category)),
       fabrics: uniq(products.map((p) => p.fabric)),
-      colors: uniq(products.map((p) => p.color)),
+      families,
       highestPrice: products.reduce((max, p) => Math.max(max, p.price), 0),
     };
   }, [products]);
@@ -74,7 +143,7 @@ export function ProductFilterGrid({ products }: { products: Product[] }) {
       (p) =>
         (categories.length === 0 || categories.includes(p.category)) &&
         (fabrics.length === 0 || fabrics.includes(p.fabric)) &&
-        (colors.length === 0 || colors.includes(p.color)) &&
+        (families.length === 0 || families.includes(p.colorFamily)) &&
         (maxPrice === null || p.price <= maxPrice)
     );
 
@@ -82,15 +151,15 @@ export function ProductFilterGrid({ products }: { products: Product[] }) {
     if (sort === "price-desc") result = [...result].sort((a, b) => b.price - a.price);
 
     return result;
-  }, [products, categories, fabrics, colors, maxPrice, sort]);
+  }, [products, categories, fabrics, families, maxPrice, sort]);
 
   const activeFilterCount =
-    categories.length + fabrics.length + colors.length + (maxPrice !== null ? 1 : 0);
+    categories.length + fabrics.length + families.length + (maxPrice !== null ? 1 : 0);
 
   function clearFilters() {
     setCategories([]);
     setFabrics([]);
-    setColors([]);
+    setFamilies([]);
     setMaxPrice(null);
   }
 
@@ -133,11 +202,16 @@ export function ProductFilterGrid({ products }: { products: Product[] }) {
           selected={fabrics}
           onToggle={(v) => toggle(fabrics, setFabrics, v)}
         />
-        <FilterGroup
-          title="Color"
-          options={options.colors}
-          selected={colors}
-          onToggle={(v) => toggle(colors, setColors, v)}
+        <ColorFamilyFilter
+          families={options.families}
+          selected={families}
+          onToggle={(family) =>
+            setFamilies(
+              families.includes(family)
+                ? families.filter((v) => v !== family)
+                : [...families, family]
+            )
+          }
         />
 
         {options.highestPrice > 0 && (
@@ -181,7 +255,10 @@ export function ProductFilterGrid({ products }: { products: Product[] }) {
           </label>
         </div>
 
-        {filtered.length === 0 ? (
+        {products.length === 0 ? (
+          // Nothing to filter, so offering "clear filters" would be nonsense.
+          <EmptyCatalogue />
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <span className="material-symbols-outlined text-4xl text-text-muted">
               filter_alt_off

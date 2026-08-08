@@ -1,7 +1,8 @@
-// The signed-in user, persisted in the browser. There is no backend session
-// to validate against yet — this is the whole of "auth" in this build.
+// The signed-in user, persisted in the browser.
+//
+// Only the local adapter uses this. Under Supabase the session lives in a
+// cookie and this file is unused — see src/lib/data/supabase/auth.ts.
 import type { AppRole } from "@/lib/auth/roles";
-import { DEMO_ACCOUNTS } from "./roles";
 
 const SESSION_KEY = "fujrs-session";
 
@@ -11,30 +12,6 @@ export interface StoredUser {
   name: string;
   role: AppRole;
   assignedStitcherSlug: string | null;
-  /** Set on the fixture staff logins, which read dashboard demo data. */
-  isDemo?: boolean;
-}
-
-const DEMO_DISPLAY_NAMES: Record<AppRole, string> = {
-  CUSTOMER: "Demo Customer",
-  ADMIN: "Demo Admin",
-  VENDOR: "Demo Vendor",
-  TAILOR: "Demo Tailor",
-  SUPER_ADMIN: "Demo Super Admin",
-};
-
-export function createDemoUser(email: string): StoredUser | null {
-  const account = DEMO_ACCOUNTS.find((a) => a.email === email.trim().toLowerCase());
-  if (!account) return null;
-
-  return {
-    id: `demo-${account.role.toLowerCase()}`,
-    email: account.email,
-    name: DEMO_DISPLAY_NAMES[account.role],
-    role: account.role,
-    assignedStitcherSlug: null,
-    isDemo: true,
-  };
 }
 
 export function persistSession(user: StoredUser) {

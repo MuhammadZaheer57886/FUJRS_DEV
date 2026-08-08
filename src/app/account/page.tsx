@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { LinkButton } from "@/components/ui/Button";
-import { listOrders, type LocalOrder } from "@/lib/local/orders";
+import { formatOrderNumber } from "@/lib/orderNumber";
+import { orders as orderStore } from "@/lib/data";
+import type { Order } from "@/lib/data";
 import {
   ROLE_LABELS,
   ROLE_WORKSPACE,
@@ -119,10 +121,16 @@ function StaffAccount({ user }: { user: AccountUser & { role: StaffRole } }) {
 }
 
 function CustomerAccount({ user }: { user: AccountUser }) {
-  const [orders, setOrders] = useState<LocalOrder[] | null>(null);
+  const [orders, setOrders] = useState<Order[] | null>(null);
 
   useEffect(() => {
-    setOrders(listOrders());
+    let active = true;
+    orderStore.list().then((list) => {
+      if (active) setOrders(list);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (
@@ -160,7 +168,7 @@ function CustomerAccount({ user }: { user: AccountUser }) {
                 >
                   <div>
                     <p className="font-body text-body-md">
-                      Order #{order.id.slice(-8).toUpperCase()}
+                      Order {formatOrderNumber(order.orderNumber)}
                     </p>
                     <p className="font-label-sm text-on-surface-variant mt-1">
                       {new Date(order.createdAt).toLocaleDateString()} · {order.items.length} item

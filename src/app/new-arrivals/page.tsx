@@ -1,10 +1,11 @@
-import Image from "next/image";
 import { ProductFilterGrid } from "@/components/ui/ProductFilterGrid";
 import { LinkButton } from "@/components/ui/Button";
-import { products } from "@/data/products";
+import { catalogRead } from "@/lib/data/server";
+import { EmptyCatalogue } from "@/components/ui/EmptyCatalogue";
+import { ProductImage } from "@/components/ui/ProductImage";
 
-export default function NewArrivalsPage() {
-  const newArrivals = products.filter((p) => p.isNewArrival);
+export default async function NewArrivalsPage() {
+  const newArrivals = (await catalogRead.list()).filter((p) => p.isNewArrival);
   const [spotlight, ...rest] = newArrivals;
 
   return (
@@ -14,10 +15,16 @@ export default function NewArrivalsPage() {
         <h1 className="mt-2 font-display text-headline-md">New Arrivals</h1>
       </div>
 
+      {newArrivals.length === 0 && (
+        <div className="container-luxe mt-10">
+          <EmptyCatalogue what="new arrivals" />
+        </div>
+      )}
+
       {spotlight && (
         <div className="container-luxe mt-10 grid grid-cols-1 gap-gutter lg:grid-cols-2">
           <div className="relative aspect-[4/5] overflow-hidden bg-surface-container lg:aspect-auto">
-            <Image
+            <ProductImage
               src={spotlight.images[0]}
               alt={spotlight.title}
               fill
@@ -45,7 +52,7 @@ export default function NewArrivalsPage() {
 
       <div className="container-luxe mt-16">
         <h2 className="font-display text-headline-sm mb-8">More New In</h2>
-        <ProductFilterGrid products={rest} />
+        {rest.length > 0 && <ProductFilterGrid products={rest} />}
       </div>
     </div>
   );

@@ -4,143 +4,122 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ProductForm } from "@/components/dashboard/ProductForm";
-import { SubmissionTable } from "@/components/dashboard/SubmissionTable";
-import {
-  CatalogStorageError,
-  approveItem,
-  createItem,
-  listItems,
-  rejectItem,
-  type CatalogItem,
-  type NewCatalogItem,
-} from "@/lib/local/catalog";
+import { CatalogTable } from "@/components/dashboard/CatalogTable";
+import { catalog, StoreWriteError } from "@/lib/data";
+import type { CatalogItem, NewCatalogItem } from "@/lib/data";
 
 /**
- * Catalogue management for the roles that can publish directly — reviewing
- * vendor submissions and adding pieces straight to the catalogue. Shared by
- * the Admin and Super Admin dashboards so the flow is identical for both.
+ * Catalogue management for the roles that can publish — shared by the Admin
+ * and Super Admin dashboards so the flow is identical for both. Pieces added
+ * here go live immediately; there is no review queue.
  */
 export function CatalogManager() {
   const { session } = useAuth();
   const { toast } = useToast();
   const [items, setItems] = useState<CatalogItem[] | null>(null);
   const [showForm, setShowForm] = useState(false);
+  /** The piece the confirmation dialog is asking about; null when closed. */
+  const [pendingRemoval, setPendingRemoval] = useState<CatalogItem | null>(null);
 
-  const refresh = useCallback(() => setItems(listItems()), []);
-  useEffect(refresh, [refresh]);
+  const refresh = useCallback(async () => {
+    setItems(await catalog.list());
+  }, []);
 
-  const reviewerName = session?.user.name ?? "Admin";
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
-  function handleAdd(input: NewCatalogItem) {
+  async function handleAdd(input: NewCatalogItem) {
     if (!session) return;
     try {
-      createItem(input, {
-        email: session.user.email,
-        name: session.user.name,
-        role: session.user.role,
-      });
+      await catalog.create(input, { email: session.user.email, name: session.user.name });
       setShowForm(false);
-      refresh();
+      await refresh();
       toast("Product published to the catalogue.", "success");
     } catch (err) {
       toast(
-        err instanceof CatalogStorageError
+        err instanceof StoreWriteError && err.outOfSpace
           ? "Storage is full. Remove an older product or use a smaller image."
           : "Couldn't save that product.",
         "info"
       );
+      // Rethrown so the form keeps what was typed — it only clears on a save.
+      throw err;
     }
   }
 
-  function handleApprove(item: CatalogItem) {
-    approveItem(item.id, reviewerName);
-    refresh();
-    toast(`“${item.title}” approved.`, "success");
+  async function handleRemove() {
+    if (!pendingRemoval) return;
+    try {
+      await catalog.remove(pendingRemoval.id);
+      await refresh();
+      toast(`“${pendingRemoval.title}” removed from the catalogue.`, "info");
+      setPendingRemoval(null);
+    } catch {
+      // Left open on the piece that didn't go, so a retry is one click away.
+      toast("Couldn't remove that product. Try again.", "info");
+    }
   }
-
-  function handleReject(item: CatalogItem) {
-    rejectItem(item.id, reviewerName);
-    refresh();
-    toast(`“${item.title}” rejected.`, "info");
-  }
-
-  const pending = items?.filter((i) => i.status === "PENDING") ?? null;
-  const published = items?.filter((i) => i.status === "APPROVED") ?? null;
 
   return (
-    <div className="space-y-10">
-      <section>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="font-display text-headline-sm">Pending Vendor Submissions</h2>
-            <p className="mt-1 text-label-sm text-marketplace-bronze">
-              {items === null
-                ? "Loading…"
-                : pending && pending.length > 0
-                  ? `${pending.length} awaiting your review.`
-                  : "Nothing awaiting review."}
-            </p>
-          </div>
+    <section>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="font-display text-headline-sm">Catalogue</h2>
+          <p className="mt-1 text-label-sm text-marketplace-bronze">
+            Pieces you add here publish immediately — they appear in the shop straight away.
+          </p>
         </div>
+        <Button variant="primary" onClick={() => setShowForm((v) => !v)}>
+          {showForm ? "Close" : "+ Add Product"}
+        </Button>
+      </div>
 
-        <div className="mt-4">
-          <SubmissionTable
-            items={pending}
-            emptyMessage="No submissions are waiting for review."
-            showSubmitter
-            actions={(item) => (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleApprove(item)}
-                  className="bg-primary px-3 py-1.5 font-label-sm text-label-sm uppercase tracking-widest text-on-primary transition-opacity hover:opacity-80"
-                >
-                  Approve
-                </button>
-                <button
-                  onClick={() => handleReject(item)}
-                  className="border border-outline-variant px-3 py-1.5 font-label-sm text-label-sm uppercase tracking-widest transition-colors hover:border-error hover:text-error"
-                >
-                  Reject
-                </button>
-              </div>
-            )}
-          />
-        </div>
-      </section>
-
-      <section>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="font-display text-headline-sm">Catalogue</h2>
-            <p className="mt-1 text-label-sm text-marketplace-bronze">
-              Pieces you add here publish immediately — no review step.
-            </p>
-          </div>
-          <Button variant="primary" onClick={() => setShowForm((v) => !v)}>
-            {showForm ? "Close" : "+ Add Product"}
-          </Button>
-        </div>
-
-        {showForm && (
-          <div className="mt-6">
-            <ProductForm
-              submitLabel="Publish to Catalogue"
-              onSubmit={handleAdd}
-              onCancel={() => setShowForm(false)}
-            />
-          </div>
-        )}
-
+      {showForm && (
         <div className="mt-6">
-          <SubmissionTable
-            items={published}
-            emptyMessage="No products published yet."
-            showSubmitter
-            showReviewer
+          <ProductForm
+            submitLabel="Publish to Catalogue"
+            onSubmit={handleAdd}
+            onCancel={() => setShowForm(false)}
+            // Only a Super Admin can change the lists (the database enforces
+            // it); everyone else is told who to ask rather than shown a button
+            // that would be refused.
+            canManageOptions={session?.user.role === "SUPER_ADMIN"}
           />
         </div>
-      </section>
-    </div>
+      )}
+
+      <div className="mt-6">
+        <CatalogTable
+          items={items}
+          emptyMessage="No products added yet."
+          actions={(item) => (
+            <button
+              onClick={() => setPendingRemoval(item)}
+              className="border border-outline-variant px-3 py-1.5 font-label-sm text-label-sm uppercase tracking-widest transition-colors hover:border-error hover:text-error"
+            >
+              Remove
+            </button>
+          )}
+        />
+      </div>
+
+      <ConfirmDialog
+        open={pendingRemoval !== null}
+        title="Remove this product?"
+        message={
+          <>
+            “{pendingRemoval?.title}” comes off the shop straight away. This can’t be undone — the
+            piece has to be added again from scratch.
+          </>
+        }
+        confirmLabel="Remove Product"
+        pendingLabel="Removing product"
+        onConfirm={handleRemove}
+        onCancel={() => setPendingRemoval(null)}
+      />
+    </section>
   );
 }

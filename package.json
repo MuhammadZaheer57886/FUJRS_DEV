@@ -9,12 +9,18 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "seed:generate:optional": "node --experimental-strip-types scripts/generate-seed.mjs",
+    "types:generate": "supabase gen types typescript --linked > src/lib/data/supabase/database.types.ts",
+    "images": "node scripts/optimise-images.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.112.0",
     "next": "15.5.22",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",

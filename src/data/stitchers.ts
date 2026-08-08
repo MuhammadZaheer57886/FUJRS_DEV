@@ -164,6 +164,15 @@ export const stitchers: Stitcher[] = [
   },
 ];
 
+/**
+ * Who a stitching job goes to when the customer hasn't picked anyone.
+ *
+ * Products don't name a stitcher — that's an operational assignment, not a
+ * property of the fabric — so this is the fallback both the bag and the
+ * bespoke configurator use.
+ */
+export const DEFAULT_STITCHER_SLUG = "khyber-artisans";
+
 export function getStitcherBySlug(slug: string) {
   return stitchers.find((s) => s.slug === slug);
 }

@@ -1,6 +1,19 @@
-import type { Product } from "@/data/products";
+import type { CatalogItem } from "@/lib/data";
+import { Swatch } from "@/components/ui/OptionPickers";
 
-export function SpecsAccordion({ product }: { product: Product }) {
+export function SpecsAccordion({ product }: { product: CatalogItem }) {
+  // The dupatta was one string ("2.5 Meters Organza with Border") and is now
+  // three columns. Reassembled here for display, so the row reads the same as
+  // it always did while the data underneath is filterable.
+  const dupatta =
+    [
+      product.dupattaLength !== null ? `${product.dupattaLength} Meters` : null,
+      product.dupattaFabric,
+      product.dupattaFinish,
+    ]
+      .filter(Boolean)
+      .join(" ") || null;
+
   return (
     <div className="border-t border-border-subtle mt-4">
       <details className="group border-b border-border-subtle" open>
@@ -15,46 +28,62 @@ export function SpecsAccordion({ product }: { product: Product }) {
         <div className="pb-6 space-y-3 font-body-md text-on-surface-variant">
           <div className="flex justify-between border-b border-surface-container pb-2">
             <span>Main Fabric</span>
-            <span className="text-primary font-medium">{product.fabric}</span>
+            {/* Weight is its own column now, so "Raw Silk" and "Raw Silk 80gm"
+                are one fabric with a detail rather than two fabrics. */}
+            <span className="text-primary font-medium">
+              {product.fabric}
+              {product.fabricWeightGsm && ` · ${product.fabricWeightGsm}gm`}
+            </span>
           </div>
-          {product.meters && (
+          {product.meters !== null && (
             <div className="flex justify-between border-b border-surface-container pb-2">
               <span>Length</span>
-              <span className="text-primary font-medium">{product.meters}</span>
+              <span className="text-primary font-medium">
+                {product.meters} Meters
+                {product.metersNote && ` (${product.metersNote})`}
+              </span>
             </div>
           )}
-          {product.embroidery && (
+          {product.embroidery.length > 0 && (
             <div className="flex justify-between border-b border-surface-container pb-2">
               <span>Embroidery</span>
-              <span className="text-primary font-medium">{product.embroidery}</span>
+              <span className="text-primary font-medium">{product.embroidery.join(", ")}</span>
             </div>
           )}
-          {product.dupattaInfo && (
+          {dupatta && (
             <div className="flex justify-between border-b border-surface-container pb-2">
               <span>Dupatta</span>
-              <span className="text-primary font-medium">{product.dupattaInfo}</span>
+              <span className="text-primary font-medium">{dupatta}</span>
             </div>
           )}
           <div className="flex justify-between border-b border-surface-container pb-2">
             <span>Color</span>
-            <span className="text-primary font-medium">{product.color}</span>
+            <span className="flex items-center gap-2 text-primary font-medium">
+              <Swatch hex={product.colorHex} size={16} />
+              {product.color}
+            </span>
           </div>
         </div>
       </details>
 
-      <details className="group border-b border-border-subtle">
-        <summary className="flex justify-between items-center py-4 cursor-pointer list-none">
-          <span className="font-label-md text-primary uppercase tracking-widest">
-            {product.heritageStory ? "Heritage Story" : "Product Story"}
-          </span>
-          <span className="material-symbols-outlined transition-transform group-open:rotate-180">
-            expand_more
-          </span>
-        </summary>
-        <div className="pb-6 font-body-md text-on-surface-variant leading-relaxed">
-          {product.heritageStory ?? product.description}
-        </div>
-      </details>
+      {/* Only when there is one. This used to fall back to the description,
+          which meant a piece WITH a heritage story showed its description
+          nowhere on the page — the panel above owns that copy now. */}
+      {product.heritageStory && (
+        <details className="group border-b border-border-subtle">
+          <summary className="flex justify-between items-center py-4 cursor-pointer list-none">
+            <span className="font-label-md text-primary uppercase tracking-widest">
+              Heritage Story
+            </span>
+            <span className="material-symbols-outlined transition-transform group-open:rotate-180">
+              expand_more
+            </span>
+          </summary>
+          <div className="pb-6 font-body-md text-on-surface-variant leading-relaxed">
+            {product.heritageStory}
+          </div>
+        </details>
+      )}
 
       <details className="group border-b border-border-subtle">
         <summary className="flex justify-between items-center py-4 cursor-pointer list-none">

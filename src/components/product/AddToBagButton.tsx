@@ -1,13 +1,13 @@
 "use client";
 
 import { useCart } from "@/components/cart/CartContext";
-import type { Product } from "@/data/products";
+import type { CatalogItem } from "@/lib/data";
 
 export function AddToBagButton({
   product,
   label = "Quick Purchase",
 }: {
-  product: Product;
+  product: CatalogItem;
   label?: string;
 }) {
   const { addItem } = useCart();

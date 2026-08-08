@@ -8,8 +8,8 @@ import { useCart, cartTotals } from "@/components/cart/CartContext";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
-import { createOrder } from "@/lib/local/orders";
-import { getAddress } from "@/lib/local/profile";
+import { orders as orderStore, profiles, referrals } from "@/lib/data";
+import { LoadingScreen } from "@/components/ui/Loading";
 
 type Step = 1 | 2 | 3;
 
@@ -37,28 +37,49 @@ export default function CheckoutPage() {
   const [promoCode, setPromoCode] = useState("");
   const [promoMessage, setPromoMessage] = useState<string | null>(null);
 
+  // Read after mount — the referral is client-side state, and reading it during
+  // render would not match the server-rendered HTML.
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    referrals.get().then((referral) => {
+      if (active) setReferralCode(referral?.code ?? null);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const { fabricTotal, stitchingTotal, shipping, total } = cartTotals(items);
 
+  // An empty bag means there's nothing to check out — except in the moment
+  // after the order is placed, when the bag is emptied on purpose. Without the
+  // `placing` guard this races the push to the confirmation page and can strand
+  // the customer on /cart with no record of what they just ordered.
   useEffect(() => {
-    if (mounted && items.length === 0) router.replace("/cart");
-  }, [mounted, items.length, router]);
+    if (mounted && items.length === 0 && !placing) router.replace("/cart");
+  }, [mounted, items.length, router, placing]);
 
   useEffect(() => {
     if (!session?.user.email) return;
     setEmail((prev) => prev || session.user.email);
 
-    const saved = getAddress(session.user.email);
-    if (saved) {
+    let active = true;
+    void profiles.getAddress().then((saved) => {
+      if (!active || !saved) return;
       setStreet((prev) => prev || saved.street);
       setCity((prev) => prev || saved.city);
       setPostalCode((prev) => prev || saved.postalCode);
-    }
+    });
+    return () => {
+      active = false;
+    };
   }, [session]);
 
   if (!mounted || items.length === 0) {
     return (
-      <main className="pt-32 pb-20 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto min-h-[60vh] flex items-center justify-center">
-        <p className="font-body-md text-on-surface-variant">Loading checkout…</p>
+      <main className="pt-32 pb-20 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto">
+        <LoadingScreen label="Loading checkout" />
       </main>
     );
   }
@@ -88,7 +109,7 @@ export default function CheckoutPage() {
     setStep(3);
   }
 
-  function placeOrder() {
+  async function placeOrder() {
     if (paymentMethod === "card") {
       toast("Card payments aren't available yet — choose Cash on Delivery.", "soon");
       return;
@@ -97,31 +118,40 @@ export default function CheckoutPage() {
     setPlacing(true);
     setError(null);
 
-    const order = createOrder({
-      items: items.map((item) => ({
-        productSlug: item.slug,
-        title: item.title,
-        image: item.image,
-        price: item.price,
-        qty: item.qty,
-        stitchingLabel: item.stitching?.label,
-        stitchingAddOn: item.stitching?.addOn,
-        stitcherSlug: item.stitcherSlug,
-      })),
-      fabricTotal,
-      stitchingTotal,
-      shipping,
-      total,
-      firstName,
-      lastName,
-      street,
-      city,
-      postalCode,
-      paymentMethod,
-    });
+    try {
+      const order = await orderStore.create({
+        items: items.map((item) => ({
+          productSlug: item.slug,
+          title: item.title,
+          image: item.image,
+          price: item.price,
+          qty: item.qty,
+          stitchingLabel: item.stitching?.label,
+          stitchingAddOn: item.stitching?.addOn,
+          stitcherSlug: item.stitcherSlug,
+        })),
+        fabricTotal,
+        stitchingTotal,
+        shipping,
+        total,
+        firstName,
+        lastName,
+        street,
+        city,
+        postalCode,
+        paymentMethod,
+      });
 
-    clear();
-    router.push(`/checkout/confirmation?orderId=${order.id}`);
+      // Only clear the bag once the order is safely written. Clearing first
+      // would lose it if the write failed.
+      clear();
+      router.push(`/checkout/confirmation?orderId=${order.id}`);
+    } catch {
+      // Reset `placing` so the button re-enables and the empty-bag guard works
+      // again — otherwise a failed order leaves the page permanently stuck.
+      setPlacing(false);
+      setError("We couldn't place your order. Please try again.");
+    }
   }
 
   const steps: { n: Step; label: string }[] = [
@@ -434,7 +464,7 @@ export default function CheckoutPage() {
                   </Button>
                   <Button
                     variant="primary"
-                    onClick={placeOrder}
+                    onClick={() => void placeOrder()}
                     disabled={placing}
                     className="flex-grow !py-5 active:scale-95"
                   >
@@ -478,6 +508,17 @@ export default function CheckoutPage() {
                   PKR {total.toLocaleString()}
                 </span>
               </div>
+              {referralCode && (
+                <div className="mb-8 border border-outline-variant border-l-4 border-l-tertiary-fixed-dim bg-surface-container-low p-4">
+                  <p className="font-label-sm text-label-sm uppercase tracking-widest text-marketplace-bronze">
+                    Referred by {referralCode}
+                  </p>
+                  <p className="mt-1 font-body-md text-body-md text-on-surface-variant">
+                    This order will be credited to the partner who sent you. It doesn&apos;t change
+                    what you pay.
+                  </p>
+                </div>
+              )}
               <form className="relative" onSubmit={handleApplyPromo}>
                 <label htmlFor="checkout-promo-code" className="sr-only">
                   Promo code

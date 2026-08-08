@@ -1,3 +1,5 @@
+import { INSTAGRAM } from "@/lib/social";
+
 const images = [
   {
     alt: "A high-quality Instagram photo of a fashion influencer in a busy Lahore street, wearing a stylishly stitched suit.",
@@ -30,9 +32,22 @@ export function InstagramGallery() {
     <section className="py-margin-desktop border-t border-outline-variant">
       <div className="max-w-container-max mx-auto px-gutter mb-12 flex justify-between items-end">
         <h2 className="font-headline-sm text-headline-sm">#FUJRS on Instagram</h2>
-        <a className="font-label-md text-label-md text-on-surface-variant" href="#">
-          @fujrs.luxury
-        </a>
+        {/* Rendered as plain text until the account exists — see @/lib/social.
+            A link with nowhere to go is worse than no link. */}
+        {INSTAGRAM.url ? (
+          <a
+            className="font-label-md text-label-md text-on-surface-variant underline underline-offset-4 transition-colors hover:text-primary"
+            href={INSTAGRAM.url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {INSTAGRAM.handle}
+          </a>
+        ) : (
+          <span className="font-label-md text-label-md text-on-surface-variant">
+            {INSTAGRAM.handle}
+          </span>
+        )}
       </div>
       <div className="grid grid-cols-3 md:grid-cols-6 h-[400px]">
         {images.map((image, i) => (

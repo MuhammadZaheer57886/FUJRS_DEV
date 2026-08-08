@@ -5,6 +5,7 @@ import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { RouteProgress } from "@/components/layout/RouteProgress";
+import { ReferralBar } from "@/components/layout/ReferralBar";
 import { CartProvider } from "@/components/cart/CartContext";
 import { WishlistProvider } from "@/components/wishlist/WishlistContext";
 import { TailoringProvider } from "@/components/tailoring/TailoringContext";
@@ -50,6 +51,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <RouteProgress />
                   </Suspense>
                   <Navbar />
+                  <Suspense fallback={null}>
+                    <ReferralBar />
+                  </Suspense>
                   <main className="flex-1">{children}</main>
                   <Footer />
                 </TailoringProvider>

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useTailoring, MEASUREMENT_FIELDS } from "@/components/tailoring/TailoringContext";
+import { useTailoring } from "@/components/tailoring/TailoringContext";
+import { MEASUREMENT_FIELDS, isMeasurementSetComplete } from "@/lib/measurements";
 import { useCart } from "@/components/cart/CartContext";
 import { getStitcherBySlug, stitchers } from "@/data/stitchers";
 import { Button } from "@/components/ui/Button";
@@ -27,8 +28,7 @@ export default function ReviewPage() {
 
   useEffect(() => {
     if (!mounted) return;
-    const hasMeasurements = MEASUREMENT_FIELDS.every((f) => config.measurements[f]?.trim());
-    if (!hasMeasurements) router.replace("/tailoring/configure");
+    if (!isMeasurementSetComplete(config.measurements)) router.replace("/tailoring/configure");
   }, [mounted, config, router]);
 
   if (!mounted) return null;
