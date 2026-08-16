@@ -41,7 +41,7 @@ function ProfileSection({ email, name }: { email: string; name: string }) {
     } catch {
       // Roll the preview back so the UI doesn't claim a save that didn't happen.
       setAvatar(await profiles.getAvatar());
-      toast("Couldn't save that photo — try a smaller image.", "info");
+      toast("Couldn't save that photo. Try a smaller image.", "info");
     }
   }
 

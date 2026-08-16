@@ -419,6 +419,9 @@ export async function POST(request: Request) {
     orderNumber: orderRow.order_number,
     createdAt: orderRow.placed_at,
     status: INITIAL_ORDER_STATUS,
+    // A just-placed order has not been delivered, so there is no return
+    // window running yet (src/lib/refunds.ts).
+    deliveredAt: null,
     items: priced.map((line, index) => ({
       id: itemRows?.[index]?.id ?? `${index}`,
       productSlug: text(incoming[index]?.productSlug, 80),

@@ -37,7 +37,7 @@ export function CartView({ products }: { products: CatalogItem[] }) {
     e.preventDefault();
     setPromoMessage(
       promoCode.trim()
-        ? "Promo codes aren't available yet — check back soon."
+        ? "Promo codes aren't available yet. Check back soon."
         : "Enter a code first."
     );
   }
@@ -263,7 +263,7 @@ export function CartView({ products }: { products: CatalogItem[] }) {
         </aside>
       </div>
 
-      {/* Complete the Look — hidden entirely when none of those accessories
+      {/* Complete the Look: hidden entirely when none of those accessories
           are in the catalogue, rather than a heading over an empty grid. */}
       {completeTheLook.length > 0 && (
         <section className="mt-32">
@@ -289,7 +289,8 @@ export function CartView({ products }: { products: CatalogItem[] }) {
                 <Link href={`/products/${product.slug}`} className="block">
                   <div className="relative aspect-[4/5] bg-surface-container overflow-hidden mb-4">
                     <ProductImage
-                      src={product.images[0]}
+                      src={product.images[0]?.url}
+                      focal={product.images[0]}
                       alt={product.title}
                       fill
                       sizes="(min-width: 768px) 25vw, 50vw"

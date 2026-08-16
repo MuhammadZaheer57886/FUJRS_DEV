@@ -177,7 +177,7 @@ export const products: Product[] = [
     images: [src.giza87],
     isNewArrival: false,
     description:
-      "Premium Egyptian Giza 87 cotton with a subtle, elegant sheen and a fine weave — our signature white, 4.5 meters.",
+      "Premium Egyptian Giza 87 cotton with a subtle, elegant sheen and a fine weave. Our signature white, 4.5 meters.",
     sizes: ["Unstitched"],
     meters: "4.5 Meters",
     badge: "Sold by FUJRS",

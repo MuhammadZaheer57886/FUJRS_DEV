@@ -115,7 +115,7 @@ export function ProductReviews({ productSlug }: { productSlug: string }) {
 
     try {
       setList(await reviewStore.submit(productSlug, { rating, title, body }));
-      toast(mine ? "Your review has been updated." : "Thank you — your review is live.", "success");
+      toast(mine ? "Your review has been updated." : "Thank you, your review is live.", "success");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save your review.");
     } finally {
@@ -238,7 +238,7 @@ export function ProductReviews({ productSlug }: { productSlug: string }) {
               <h4 className="font-display text-headline-sm">Write a review</h4>
               <p className="mt-3 font-body text-body-md text-text-muted">
                 Sign in to leave one. Reviews are tied to an account so the shop can stand behind
-                them — that&apos;s also what earns the Verified Purchase badge.
+                them, and that&apos;s also what earns the Verified Purchase badge.
               </p>
               <LinkButton href="/login" variant="secondary" className="mt-6">
                 Sign In

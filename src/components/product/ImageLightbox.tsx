@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ProductImage } from "@/components/ui/ProductImage";
+import type { ProductPhoto } from "@/lib/data";
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
@@ -25,7 +26,7 @@ export function ImageLightbox({
   onIndexChange,
   onClose,
 }: {
-  images: string[];
+  images: ProductPhoto[];
   title: string;
   /** Which photo is showing; the gallery owns it so both stay in step. */
   index: number;
@@ -121,7 +122,7 @@ export function ImageLightbox({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`${title} — image ${index + 1} of ${images.length}`}
+      aria-label={`${title}: image ${index + 1} of ${images.length}`}
       className="fixed inset-0 z-[70] flex flex-col bg-primary/95 backdrop-blur-sm"
     >
       <div className="flex items-center justify-between gap-4 px-gutter py-4 text-on-primary">
@@ -170,8 +171,10 @@ export function ImageLightbox({
             onDoubleClick={() => changeZoom(zoomed ? MIN_ZOOM : QUICK_ZOOM)}
           >
             <ProductImage
-              src={images[index]}
-              alt={`${title} — view ${index + 1}`}
+              // No focal point: the viewer shows the whole frame (object-contain),
+              // which is the one place nothing is cropped away.
+              src={images[index].url}
+              alt={`${title}, view ${index + 1}`}
               fill
               sizes="100vw"
               className="object-contain"

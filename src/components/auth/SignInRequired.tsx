@@ -44,8 +44,8 @@ export function SignInRequired({
       </div>
 
       <p className="mt-8 max-w-sm font-label-sm text-on-surface-variant leading-relaxed">
-        Your bag and wishlist are already saved and will carry over — signing up keeps them on the
-        same account.
+        Your bag and wishlist are already saved and will carry over, and signing up keeps them on
+        the same account.
       </p>
     </div>
   );

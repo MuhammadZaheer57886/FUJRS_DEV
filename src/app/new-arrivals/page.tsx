@@ -25,7 +25,8 @@ export default async function NewArrivalsPage() {
         <div className="container-luxe mt-10 grid grid-cols-1 gap-gutter lg:grid-cols-2">
           <div className="relative aspect-[4/5] overflow-hidden bg-surface-container lg:aspect-auto">
             <ProductImage
-              src={spotlight.images[0]}
+              src={spotlight.images[0]?.url}
+              focal={spotlight.images[0]}
               alt={spotlight.title}
               fill
               sizes="(min-width: 1024px) 50vw, 100vw"

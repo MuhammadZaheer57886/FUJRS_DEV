@@ -216,6 +216,16 @@ on conflict (id) do update set
 `
   );
 
+  // Colourways are a junction (migration 21). The hand-written array gives a
+  // piece one colour, so each product seeds a single primary row; `color_id` on
+  // products is written too, and is legacy.
+  lines.push(`delete from product_colors where product_id = ${id};`);
+  lines.push(
+    `insert into product_colors (product_id, color_id, position)
+select ${id}, id, 0 from colors where slug = ${q(colorSlug(p.color))}
+on conflict do nothing;`
+  );
+
   // Embroidery is a junction now, not a CSV column.
   lines.push(`delete from product_embroidery where product_id = ${id};`);
   for (const technique of splitEmbroidery(p.embroidery)) {

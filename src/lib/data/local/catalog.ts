@@ -3,9 +3,20 @@
 // approval.
 
 import { slugify, uniqueSlug } from "@/lib/slug";
-import { isColorFamily, type ColorFamily } from "@/lib/productTaxonomy";
+import { isColorFamily } from "@/lib/productTaxonomy";
+import { CENTRE_FOCAL, clampFocal } from "@/lib/productPhoto";
 import type { CatalogStore } from "../ports";
-import type { CatalogItem, ProductGender, TaxonomyOption } from "../types";
+import { StoreWriteError } from "../types";
+import type {
+  CatalogItem,
+  ColorOption,
+  ProductColor,
+  ProductFormPhoto,
+  ProductGender,
+  ProductInput,
+  ProductPhoto,
+  TaxonomyOption,
+} from "../types";
 import { makeId, normaliseEmail, readJSON, writeJSON } from "./storage";
 import { localProductTaxonomy } from "./taxonomy";
 
@@ -25,6 +36,79 @@ function parseLeadingNumber(value: unknown): number | null {
 }
 
 /**
+ * The colourways on a stored row.
+ *
+ * Three shapes exist in the wild: rows written since colours went multiple
+ * (`colors: [...]`), rows written when a product had exactly one managed colour
+ * (`colorId`/`colorHex`/`colorFamily`), and rows older than the managed lists,
+ * which have a typed-in name and nothing else. The last two become a one-colour
+ * product rather than a colourless one.
+ *
+ * Neutral grey and MULTI are what an unclassified colour reads as, which is
+ * what it is — better than guessing a hex from a name like "Emerald".
+ */
+function normaliseColors(row: Record<string, unknown>): ProductColor[] {
+  const one = (value: Record<string, unknown>): ProductColor | null => {
+    const label = str(value.label) || str(value.color);
+    const id = str(value.id) || str(value.colorId);
+    if (!label && !id) return null;
+    const hex = str(value.hex) || str(value.colorHex) || "#808080";
+    const family = str(value.family) || str(value.colorFamily);
+    return { id, label, hex, family: isColorFamily(family) ? family : "MULTI" };
+  };
+
+  if (Array.isArray(row.colors)) {
+    return (row.colors as unknown[])
+      .filter(
+        (color): color is Record<string, unknown> => typeof color === "object" && color !== null
+      )
+      .map(one)
+      .filter((color): color is ProductColor => color !== null);
+  }
+
+  const legacy = one(row);
+  return legacy ? [legacy] : [];
+}
+
+/**
+ * The photos on a stored row.
+ *
+ * Three shapes exist in the wild: rows written since focal points arrived
+ * (`images: [{ url, focalX, focalY }]`), rows written when a photo was just a
+ * URL (`images: ["..."]`), and rows older than the gallery, which carry one
+ * `image`. Every one becomes a centred photo rather than a missing one.
+ */
+function normalisePhotos(row: Record<string, unknown>): ProductPhoto[] {
+  const centred = (url: string): ProductPhoto => ({
+    id: makeId(),
+    url,
+    focalX: CENTRE_FOCAL,
+    focalY: CENTRE_FOCAL,
+  });
+
+  if (Array.isArray(row.images)) {
+    return (row.images as unknown[])
+      .map((image): ProductPhoto | null => {
+        if (typeof image === "string") return image ? centred(image) : null;
+        if (typeof image !== "object" || image === null) return null;
+        const photo = image as Record<string, unknown>;
+        const url = str(photo.url);
+        if (!url) return null;
+        return {
+          id: str(photo.id) || makeId(),
+          url,
+          focalX: clampFocal(photo.focalX),
+          focalY: clampFocal(photo.focalY),
+        };
+      })
+      .filter((photo): photo is ProductPhoto => photo !== null);
+  }
+
+  const single = str(row.image);
+  return single ? [centred(single)] : [];
+}
+
+/**
  * Rows written before the review step was removed carry `submittedBy*` and a
  * status; rows written before the form captured the full product are missing
  * colour, sizes, stock and the product-page details. Normalising here keeps
@@ -32,14 +116,7 @@ function parseLeadingNumber(value: unknown): number | null {
  * blanks, not as a crash.
  */
 function normalise(row: Record<string, unknown>): CatalogItem {
-  // Rows written before products supported more than one photo carry a single
-  // `image`. Lifting it into the array here keeps the old shape out of every
-  // component that reads a product.
-  const gallery = Array.isArray(row.images)
-    ? (row.images as unknown[]).filter((image): image is string => typeof image === "string")
-    : typeof row.image === "string" && row.image
-      ? [row.image]
-      : [];
+  const gallery = normalisePhotos(row);
 
   const title = str(row.title);
 
@@ -55,13 +132,7 @@ function normalise(row: Record<string, unknown>): CatalogItem {
     category: str(row.category),
     categoryId: str(row.categoryId),
     gender: str(row.gender, "Women") as ProductGender,
-    color: str(row.color),
-    colorId: str(row.colorId),
-    // Rows written before colours were managed have no swatch to show. Neutral
-    // grey and MULTI read as "unclassified", which is what they are — better
-    // than guessing a hex from a name like "Emerald".
-    colorHex: str(row.colorHex) || "#808080",
-    colorFamily: isColorFamily(str(row.colorFamily)) ? (row.colorFamily as ColorFamily) : "MULTI",
+    colors: normaliseColors(row),
     sizes: Array.isArray(row.sizes)
       ? (row.sizes as unknown[]).filter((size): size is string => typeof size === "string")
       : DEFAULT_SIZES,
@@ -98,12 +169,94 @@ function normalise(row: Record<string, unknown>): CatalogItem {
     rating: num(row.rating),
     reviewCount: num(row.reviewCount) ?? 0,
     addedByEmail: str(row.addedByEmail) || str(row.submittedByEmail),
-    addedByName: str(row.addedByName) || str(row.submittedByName) || "—",
+    addedByName: str(row.addedByName) || str(row.submittedByName) || "-",
     createdAt: str(row.createdAt, new Date(0).toISOString()),
   };
 }
 
+/**
+ * A form photo as this adapter stores it.
+ *
+ * The dimensions the uploader measured matter to Storage, not to a data URL the
+ * browser renders directly, so only the URL is kept. A photo already on the
+ * product is kept exactly as it was: its id is what an edit used to say "this
+ * one stays".
+ */
+function toStoredPhoto(photo: ProductFormPhoto): ProductPhoto {
+  if (photo.kind === "stored") {
+    const { id, url, focalX, focalY } = photo;
+    return { id, url, focalX, focalY };
+  }
+  return { id: makeId(), url: photo.dataUrl, focalX: photo.focalX, focalY: photo.focalY };
+}
+
 const readAll = (): CatalogItem[] => readJSON<Record<string, unknown>[]>(KEY, []).map(normalise);
+
+/**
+ * Everything the form owns, resolved from ids to labels.
+ *
+ * The form submits taxonomy IDS and a CatalogItem carries the LABELS. On
+ * Supabase a join resolves them; here that join is a lookup in the stored
+ * lists, done ONCE at write time so reads stay a plain array read.
+ *
+ * Shared by create and update rather than typed twice, because a field added
+ * to one and forgotten in the other is a field that silently refuses to be
+ * edited.
+ */
+async function resolveInput(
+  input: ProductInput
+): Promise<
+  Omit<
+    CatalogItem,
+    "id" | "slug" | "rating" | "reviewCount" | "addedByEmail" | "addedByName" | "createdAt"
+  >
+> {
+  const taxonomy = await localProductTaxonomy.read();
+  const find = <T extends TaxonomyOption>(list: T[], id: string | null) =>
+    id ? list.find((entry) => entry.id === id) : undefined;
+
+  return {
+    title: input.title,
+    price: input.price,
+    compareAtPrice: input.compareAtPrice,
+    description: input.description,
+    gender: input.gender,
+
+    fabric: find(taxonomy.fabrics, input.fabricId)?.label ?? "",
+    fabricId: input.fabricId,
+    fabricWeightGsm: input.fabricWeightGsm,
+    category: find(taxonomy.categories, input.categoryId)?.label ?? "",
+    categoryId: input.categoryId,
+    // Order is the order they were picked; the first is the primary.
+    colors: input.colorIds
+      .map((id) => find(taxonomy.colors, id))
+      .filter((color): color is ColorOption => Boolean(color))
+      .map(({ id, label, hex, family }) => ({ id, label, hex, family })),
+    badge: find(taxonomy.badges, input.badgeId)?.label ?? null,
+    badgeId: input.badgeId,
+
+    sizes: input.sizes,
+    sizeScaleId: input.sizeScaleId,
+    stock: input.stock,
+    sku: input.sku,
+    isNewArrival: input.isNewArrival,
+    stitchingEligible: input.stitchingEligible,
+    stitchingAddOn: input.stitchingAddOn,
+
+    meters: input.meters,
+    metersNote: input.metersNote,
+    embroidery: input.embroideryIds
+      .map((id) => find(taxonomy.embroideryTechniques, id)?.label)
+      .filter((label): label is string => Boolean(label)),
+    dupattaLength: input.dupattaLength,
+    dupattaFabric: find(taxonomy.fabrics, input.dupattaFabricId)?.label ?? null,
+    dupattaFabricId: input.dupattaFabricId,
+    dupattaFinish: input.dupattaFinish,
+    heritageStory: input.heritageStory,
+
+    images: input.images.map(toStoredPhoto),
+  };
+}
 
 export const localCatalog: CatalogStore = {
   async list() {
@@ -119,62 +272,13 @@ export const localCatalog: CatalogStore = {
   async create(input, author) {
     const existing = readAll();
 
-    // The form submits taxonomy IDS and a CatalogItem carries the LABELS. On
-    // Supabase a join resolves them; here that join is a lookup in the stored
-    // lists, done ONCE at write time so reads stay a plain array read.
-    const taxonomy = await localProductTaxonomy.read();
-    const find = <T extends TaxonomyOption>(list: T[], id: string | null) =>
-      id ? list.find((entry) => entry.id === id) : undefined;
-
-    const color = find(taxonomy.colors, input.colorId);
-    const dupattaFabric = find(taxonomy.fabrics, input.dupattaFabricId);
-
     const item: CatalogItem = {
+      ...(await resolveInput(input)),
       id: makeId(),
       slug: uniqueSlug(
         input.title,
         existing.map((product) => product.slug)
       ),
-      title: input.title,
-      price: input.price,
-      compareAtPrice: input.compareAtPrice,
-      description: input.description,
-      gender: input.gender,
-
-      fabric: find(taxonomy.fabrics, input.fabricId)?.label ?? "",
-      fabricId: input.fabricId,
-      fabricWeightGsm: input.fabricWeightGsm,
-      category: find(taxonomy.categories, input.categoryId)?.label ?? "",
-      categoryId: input.categoryId,
-      color: color?.label ?? "",
-      colorId: input.colorId,
-      colorHex: color?.hex ?? "#808080",
-      colorFamily: color?.family ?? "MULTI",
-      badge: find(taxonomy.badges, input.badgeId)?.label ?? null,
-      badgeId: input.badgeId,
-
-      sizes: input.sizes,
-      sizeScaleId: input.sizeScaleId,
-      stock: input.stock,
-      sku: input.sku,
-      isNewArrival: input.isNewArrival,
-      stitchingEligible: input.stitchingEligible,
-      stitchingAddOn: input.stitchingAddOn,
-
-      meters: input.meters,
-      metersNote: input.metersNote,
-      embroidery: input.embroideryIds
-        .map((id) => find(taxonomy.embroideryTechniques, id)?.label)
-        .filter((label): label is string => Boolean(label)),
-      dupattaLength: input.dupattaLength,
-      dupattaFabric: dupattaFabric?.label ?? null,
-      dupattaFabricId: input.dupattaFabricId,
-      dupattaFinish: input.dupattaFinish,
-      heritageStory: input.heritageStory,
-
-      // The dimensions the uploader measured matter to Storage, not to a data
-      // URL the browser renders directly — only the URL is kept here.
-      images: input.images.map((image) => image.dataUrl),
       rating: null,
       reviewCount: 0,
       addedByEmail: normaliseEmail(author.email),
@@ -183,6 +287,26 @@ export const localCatalog: CatalogStore = {
     };
 
     writeJSON(KEY, [...existing, item]);
+    return item;
+  },
+
+  async update(id, input) {
+    const existing = readAll();
+    const current = existing.find((item) => item.id === id);
+    if (!current) throw new StoreWriteError("That product no longer exists. Reload and try again.");
+
+    // The slug, the authorship and the timestamp are the store's, and a
+    // retitled piece keeps the address it was published at rather than
+    // breaking every link already shared. Same rule as Supabase.
+    const item: CatalogItem = {
+      ...current,
+      ...(await resolveInput(input)),
+    };
+
+    writeJSON(
+      KEY,
+      existing.map((entry) => (entry.id === id ? item : entry))
+    );
     return item;
   },
 

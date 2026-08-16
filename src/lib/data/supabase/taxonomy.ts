@@ -115,29 +115,31 @@ async function readAll(): Promise<ProductTaxonomy> {
   if (firstError) throw new StoreWriteError("Couldn't load the product lists.");
 
   return {
-    categories: ((categories.data ?? []) as unknown as (BaseRow & {
-      gender: string | null;
-      default_stitching_addon_paisa: number | null;
-      default_size_scale_id: string | null;
-      default_meters: number | null;
-      has_dupatta: boolean;
-    })[]).map(
-      (row): CategoryOption => ({
-        ...toOption(row),
-        gender: (row.gender as ProductGender | null) ?? null,
-        defaultStitchingAddOn: toPkrOrNull(row.default_stitching_addon_paisa),
-        defaultSizeScaleId: row.default_size_scale_id,
-        // numeric(4,1) arrives as a number over PostgREST, but a string is the
-        // documented possibility for numerics — coerce rather than trust it.
-        defaultMeters: row.default_meters === null ? null : Number(row.default_meters),
-        hasDupatta: row.has_dupatta,
-      })
-    ),
+    categories: (
+      (categories.data ?? []) as unknown as (BaseRow & {
+        gender: string | null;
+        default_stitching_addon_paisa: number | null;
+        default_size_scale_id: string | null;
+        default_meters: number | null;
+        has_dupatta: boolean;
+      })[]
+    ).map((row): CategoryOption => ({
+      ...toOption(row),
+      gender: (row.gender as ProductGender | null) ?? null,
+      defaultStitchingAddOn: toPkrOrNull(row.default_stitching_addon_paisa),
+      defaultSizeScaleId: row.default_size_scale_id,
+      // numeric(4,1) arrives as a number over PostgREST, but a string is the
+      // documented possibility for numerics — coerce rather than trust it.
+      defaultMeters: row.default_meters === null ? null : Number(row.default_meters),
+      hasDupatta: row.has_dupatta,
+    })),
     fabrics: ((fabrics.data ?? []) as unknown as BaseRow[]).map(toOption),
-    colors: ((colors.data ?? []) as unknown as (BaseRow & {
-      hex: string;
-      family: ColorFamily;
-    })[]).map((row): ColorOption => ({ ...toOption(row), hex: row.hex, family: row.family })),
+    colors: (
+      (colors.data ?? []) as unknown as (BaseRow & {
+        hex: string;
+        family: ColorFamily;
+      })[]
+    ).map((row): ColorOption => ({ ...toOption(row), hex: row.hex, family: row.family })),
     badges: ((badges.data ?? []) as unknown as BaseRow[]).map(toOption),
     sizeScales: ((sizeScales.data ?? []) as unknown as (BaseRow & { size_values: string[] })[]).map(
       (row): SizeScaleOption => ({ ...toOption(row), values: row.size_values ?? [] })
@@ -155,10 +157,7 @@ async function readAll(): Promise<ProductTaxonomy> {
  */
 async function freeSlug(table: TaxonomyTable, label: string): Promise<string> {
   const base = slugify(label) || "option";
-  const { data } = await getBrowserClient()
-    .from(table)
-    .select("slug")
-    .like("slug", `${base}%`);
+  const { data } = await getBrowserClient().from(table).select("slug").like("slug", `${base}%`);
 
   const taken = new Set(((data ?? []) as { slug: string }[]).map((row) => row.slug));
   if (!taken.has(base)) return base;

@@ -46,8 +46,7 @@ function readAll(): ProductTaxonomy {
   for (const kind of KINDS) {
     const list = stored[kind];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (taxonomy as any)[kind] =
-      Array.isArray(list) && list.length > 0 ? list : STATIC_TAXONOMY[kind];
+    (taxonomy as any)[kind] = Array.isArray(list) && list.length > 0 ? list : STATIC_TAXONOMY[kind];
   }
   return taxonomy;
 }

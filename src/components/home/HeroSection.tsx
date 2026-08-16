@@ -45,8 +45,8 @@ export function HeroSection() {
           <LinkButton href="/new-arrivals" variant="primary" className="!px-12 !py-5">
             Shop Collection
           </LinkButton>
-          <LinkButton href="/new-arrivals" variant="inverse" className="!px-12 !py-5">
-            View Lookbook
+          <LinkButton href="/tailoring/stitchers" variant="inverse" className="!px-12 !py-5">
+            Meet Our Stitchers
           </LinkButton>
         </div>
       </div>

@@ -7,6 +7,7 @@
 import { SUPABASE_URL } from "./env";
 import type { ColorFamily } from "@/lib/productTaxonomy";
 import type { CatalogItem, ProductGender } from "../types";
+import { clampFocal } from "@/lib/productPhoto";
 
 export const PRODUCT_IMAGE_BUCKET = "product-images";
 
@@ -21,6 +22,10 @@ export const PRODUCT_IMAGE_BUCKET = "product-images";
  * why every embed names its foreign key explicitly: with two paths to the same
  * table PostgREST cannot guess which one is meant, and refuses the request
  * rather than picking one.
+ *
+ * Colour comes through `product_colors` rather than `products.color_id`: a
+ * piece is offered in several colourways (migration 21), and the legacy column
+ * only ever held the first of them.
  */
 export const PRODUCT_SELECT = `
   id, slug, title, description, price_paisa, compare_at_paisa, gender,
@@ -29,12 +34,13 @@ export const PRODUCT_SELECT = `
   dupatta_length, dupatta_finish, rating, review_count, created_at, created_by,
   category:product_categories!products_category_id_fkey ( id, label ),
   fabric:fabrics!products_fabric_id_fkey ( id, label ),
-  color:colors!products_color_id_fkey ( id, label, hex, family ),
+  product_colors ( position, colors ( id, label, hex, family ) ),
   badge:badges!products_badge_id_fkey ( id, label ),
   size_scale:size_scales!products_size_scale_id_fkey ( id ),
   dupatta_fabric:fabrics!products_dupatta_fabric_id_fkey ( id, label ),
   product_embroidery ( embroidery_techniques ( id, label, position ) ),
-  product_images ( storage_path, position ),
+  product_images ( id, storage_path, position, focal_x, focal_y ),
+  author:users!products_created_by_fkey ( name, email ),
   product_variants ( size )
 `;
 
@@ -95,33 +101,33 @@ export interface ProductRow {
   review_count: number;
   created_at: string;
   created_by: string | null;
+  author: { name: string | null; email: string | null } | null;
   category: LabelRef | null;
   fabric: LabelRef | null;
-  color: (LabelRef & { hex: string; family: ColorFamily }) | null;
+  product_colors:
+    { position: number; colors: (LabelRef & { hex: string; family: ColorFamily }) | null }[] | null;
   badge: LabelRef | null;
   size_scale: { id: string } | null;
   dupatta_fabric: LabelRef | null;
   product_embroidery:
-    | { embroidery_techniques: { id: string; label: string; position: number } | null }[]
+    { embroidery_techniques: { id: string; label: string; position: number } | null }[] | null;
+  product_images:
+    | { id: string; storage_path: string; position: number; focal_x: number; focal_y: number }[]
     | null;
-  product_images: { storage_path: string; position: number }[] | null;
   product_variants: { size: string }[] | null;
 }
 
-/**
- * The colour shown when a row somehow has none.
- *
- * `products.color_id` is NOT NULL, so this is unreachable through the database.
- * It exists because the embed is typed as nullable and the domain field is not,
- * and a thrown error here would blank the whole shop over one bad row.
- */
-const MISSING_COLOR = { label: "—", hex: "#808080", family: "MULTI" as ColorFamily };
-
 export function toCatalogItem(row: ProductRow): CatalogItem {
-  // Ordered by position — index 0 is the primary image.
+  // Ordered by position — index 0 is the primary image. The focal point rides
+  // along so every tile shape crops around the same spot (see ProductPhoto).
   const images = [...(row.product_images ?? [])]
     .sort((a, b) => a.position - b.position)
-    .map((image) => toPublicUrl(image.storage_path));
+    .map((image) => ({
+      id: image.id,
+      url: toPublicUrl(image.storage_path),
+      focalX: clampFocal(image.focal_x),
+      focalY: clampFocal(image.focal_y),
+    }));
 
   // The junction returns rows in no particular order; sort by the technique's
   // own position so two products list the same techniques the same way.
@@ -132,6 +138,14 @@ export function toCatalogItem(row: ProductRow): CatalogItem {
     )
     .sort((a, b) => a.position - b.position)
     .map((technique) => technique.label);
+
+  // Ordered by the position stored on the junction — index 0 is the primary
+  // colour, which is the one a listing tile shows beside the title.
+  const colors = [...(row.product_colors ?? [])]
+    .sort((a, b) => a.position - b.position)
+    .map((link) => link.colors)
+    .filter((color): color is LabelRef & { hex: string; family: ColorFamily } => Boolean(color))
+    .map(({ id, label, hex, family }) => ({ id, label, hex, family }));
 
   return {
     id: row.id,
@@ -145,10 +159,7 @@ export function toCatalogItem(row: ProductRow): CatalogItem {
     category: row.category?.label ?? "",
     categoryId: row.category?.id ?? "",
     gender: row.gender as ProductGender,
-    color: row.color?.label ?? MISSING_COLOR.label,
-    colorId: row.color?.id ?? "",
-    colorHex: row.color?.hex ?? MISSING_COLOR.hex,
-    colorFamily: row.color?.family ?? MISSING_COLOR.family,
+    colors,
     sizes: (row.product_variants ?? []).map((variant) => variant.size),
     sizeScaleId: row.size_scale?.id ?? null,
     stock: row.stock,
@@ -170,10 +181,14 @@ export function toCatalogItem(row: ProductRow): CatalogItem {
     images,
     rating: row.rating,
     reviewCount: row.review_count,
-    // The row records WHO created it by id; resolving that to a name needs a
-    // join the list view doesn't justify. Shown as "—" until something needs it.
-    addedByEmail: row.created_by ?? "",
-    addedByName: "—",
+    // Null in two ordinary cases, so neither is treated as an error: a seeded
+    // product was created by nobody, and a shopper reading the storefront can
+    // only see their own `users` row, so the join returns nothing for them.
+    // Nothing on the shop renders these; the dashboard is the only reader.
+    addedByEmail: row.author?.email ?? "",
+    // Falls back to the email because `users.name` is nullable: a staff member
+    // who has not set one should still be identifiable, not anonymous.
+    addedByName: row.author?.name || row.author?.email || "-",
     createdAt: row.created_at,
   };
 }

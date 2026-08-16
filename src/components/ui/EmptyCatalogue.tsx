@@ -21,8 +21,8 @@ export function EmptyCatalogue({
       </span>
       <p className="mt-4 font-display text-headline-sm">No {what} yet</p>
       <p className="mt-2 max-w-sm font-body text-body-md text-text-muted">
-        The collection is being prepared. Check back shortly — new pieces are added as they leave
-        the atelier.
+        The collection is being prepared. Check back shortly, as new pieces are added when they
+        leave the atelier.
       </p>
     </div>
   );

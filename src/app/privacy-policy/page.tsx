@@ -1,7 +1,7 @@
 const sections = [
   {
     title: "Information We Collect",
-    body: "We collect information you provide directly — name, email, shipping address, and payment details — as well as browsing behavior on our site to improve your shopping experience.",
+    body: "We collect information you provide directly (name, email, shipping address, and payment details) as well as browsing behavior on our site to improve your shopping experience.",
   },
   {
     title: "How We Use Your Information",

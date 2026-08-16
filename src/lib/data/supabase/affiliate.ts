@@ -10,7 +10,7 @@
 // not a record of what something cost — it is a pointer to a live product, and
 // a vendor promoting a repriced piece should see the current price.
 
-import { DEFAULT_COMMISSION, type CommissionRate } from "@/lib/commission";
+import { DEFAULT_COMMISSION, type CommissionRate, type CommissionStatus } from "@/lib/commission";
 import type { AffiliateStore } from "../ports";
 import { StoreWriteError, type AffiliateLink } from "../types";
 import { getBrowserClient } from "./client";
@@ -137,45 +137,43 @@ export const supabaseAffiliate: AffiliateStore = {
     };
   },
 
+  /**
+   * Through an RPC, not an embed off `commissions`.
+   *
+   * The embed used to be `orders ( order_number, order_items ( title ) )`, and
+   * it came back null on every row: RLS filters embedded resources too, and a
+   * vendor matches no policy on `orders` (the order is the customer's, and
+   * is_staff() is ADMIN/SUPER_ADMIN only). So the table showed a real
+   * commission against a blank product and a blank order number.
+   *
+   * `vendor_referred_sales()` is security definer and returns only the order
+   * reference and the line titles, so nothing about the buyer leaks to pay for
+   * fixing the display. See the migration for why a read policy on `orders` is
+   * the wrong answer.
+   */
   async referredSales() {
-    const vendorId = await requireUserId();
-
-    const { data, error } = await getBrowserClient()
-      .from("commissions")
-      .select(
-        `id, sale_paisa, amount_paisa, created_at,
-         orders ( order_number, order_items ( title ) )`
-      )
-      .eq("vendor_id", vendorId)
-      .order("created_at", { ascending: false });
+    const { data, error } = await getBrowserClient().rpc("vendor_referred_sales");
 
     if (error) throw new StoreWriteError("Couldn't load your referred sales.");
 
-    const rows = (data ?? []) as unknown as {
-      id: string;
-      sale_paisa: number;
-      amount_paisa: number;
-      created_at: string;
-      orders: { order_number: string; order_items: { title: string }[] | null } | null;
-    }[];
-
-    return rows.map((row) => {
-      const items = row.orders?.order_items ?? [];
+    return (data ?? []).map((row) => {
+      const titles = row.item_titles ?? [];
       return {
         id: row.id,
-        orderNumber: row.orders?.order_number ?? "",
+        orderNumber: row.order_number,
         // An order can hold several pieces; naming the first and counting the
         // rest is honest without pretending the commission belongs to one.
         product:
-          items.length === 0
-            ? "—"
-            : items.length === 1
-              ? items[0].title
-              : `${items[0].title} +${items.length - 1} more`,
+          titles.length === 0
+            ? "-"
+            : titles.length === 1
+              ? titles[0]
+              : `${titles[0]} +${titles.length - 1} more`,
         salePrice: toPkr(row.sale_paisa),
         // Read back, never recalculated: the rate was copied onto the row when
         // the sale happened, and a later rate change must not rewrite history.
         commission: toPkr(row.amount_paisa),
+        status: row.status as CommissionStatus,
         date: row.created_at.slice(0, 10),
       };
     });

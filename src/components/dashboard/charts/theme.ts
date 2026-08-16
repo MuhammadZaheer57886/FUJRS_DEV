@@ -4,10 +4,10 @@ export const CHART_COLORS = {
   series: "#804A00", // marketplace-bronze
   seriesFill: "rgba(128, 74, 0, 0.1)", // series at ~10% opacity, per mark spec
   accent: "#a08000", // gold
-  grid: "#e2e2e2", // surface-container-highest — recessive gridlines
+  grid: "#e2e2e2", // surface-container-highest, recessive gridlines
   mutedText: "#4c4546", // on-surface-variant
   ink: "#1a1c1c", // on-surface
-  surface: "#ffffff", // surface-container-lowest — ring/gap color
+  surface: "#ffffff", // surface-container-lowest, ring/gap color
 } as const;
 
 export const CHART_VIEWBOX_WIDTH = 600;

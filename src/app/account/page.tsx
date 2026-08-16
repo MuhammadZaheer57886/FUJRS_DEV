@@ -8,6 +8,7 @@ import { SignOutButton } from "@/components/auth/SignOutButton";
 import { SignInRequired } from "@/components/auth/SignInRequired";
 import { LinkButton } from "@/components/ui/Button";
 import { formatOrderNumber } from "@/lib/orderNumber";
+import { ORDER_STATUS_LABELS } from "@/lib/orderStatus";
 import { orders as orderStore } from "@/lib/data";
 import type { Order } from "@/lib/data";
 import {
@@ -173,7 +174,7 @@ function CustomerAccount({ user }: { user: AccountUser }) {
                     </p>
                     <p className="font-label-sm text-on-surface-variant mt-1">
                       {new Date(order.createdAt).toLocaleDateString()} · {order.items.length} item
-                      {order.items.length === 1 ? "" : "s"} · {order.status}
+                      {order.items.length === 1 ? "" : "s"} · {ORDER_STATUS_LABELS[order.status]}
                     </p>
                   </div>
                   <div className="flex items-center gap-6">

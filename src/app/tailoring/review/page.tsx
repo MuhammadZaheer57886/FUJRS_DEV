@@ -37,7 +37,7 @@ export default function ReviewPage() {
     addCustomItem({
       id: `bespoke-${Date.now()}`,
       slug: "bespoke-stitching-project",
-      title: `Bespoke ${config.garmentType} — ${config.neckline}, ${config.sleeve}`,
+      title: `Bespoke ${config.garmentType}: ${config.neckline}, ${config.sleeve}`,
       image: styleImages[config.neckline] ?? styleImages.Mandarin,
       price: total,
       stitching: { label: `${config.neckline}, ${config.sleeve}, ${config.hemline}`, addOn: 0 },
@@ -136,7 +136,7 @@ export default function ReviewPage() {
                 >
                   <span className="text-label-sm text-secondary uppercase">{field}</span>
                   <span className="font-label-md text-primary">
-                    {config.measurements[field] ?? "—"}
+                    {config.measurements[field] ?? "-"}
                   </span>
                 </div>
               ))}

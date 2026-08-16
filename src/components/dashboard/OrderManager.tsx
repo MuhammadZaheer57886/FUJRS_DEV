@@ -2,30 +2,53 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
-import {
-  ORDER_STATUS_LABELS,
-  isTerminalStatus,
-  nextStatuses,
-  type OrderStatus,
-} from "@/lib/orderStatus";
+import { ORDER_STATUS_LABELS, nextStatuses, type OrderStatus } from "@/lib/orderStatus";
 import { formatOrderNumber } from "@/lib/orderNumber";
 import { orders as orderStore } from "@/lib/data";
+import { RefundQueue } from "@/components/dashboard/RefundQueue";
 import type { Order } from "@/lib/data";
 import { LoadingRow } from "@/components/ui/Loading";
 
 const PKR = (amount: number) => `PKR ${amount.toLocaleString()}`;
 
+/**
+ * REFUNDED is not here on purpose.
+ *
+ * A refund is customer-initiated (`src/lib/refunds.ts`): the customer raises a
+ * request against a delivered order and staff approve it in the queue below,
+ * which is what moves the order. A button that refunded an order from this
+ * screen recorded money moving with nobody having asked, and the database now
+ * refuses that move outright for a delivered order.
+ */
+type StaffMove = Exclude<OrderStatus, "REFUNDED">;
+
 /** What each move means to the person clicking it. */
-const ACTION_LABELS: Record<OrderStatus, string> = {
+const ACTION_LABELS: Record<StaffMove, string> = {
   CONFIRMED: "Confirm",
   PROCESSING: "Mark Processing",
   DELIVERED: "Mark Delivered",
   CANCELLED: "Cancel Order",
-  REFUNDED: "Refund",
 };
 
-/** Cancelling and refunding are the two an admin shouldn't fire by accident. */
-const DESTRUCTIVE: OrderStatus[] = ["CANCELLED", "REFUNDED"];
+/** The one an admin shouldn't fire by accident. */
+const DESTRUCTIVE: StaffMove[] = ["CANCELLED"];
+
+/** Legal moves, minus the one that only a refund request may make. */
+function staffMoves(from: OrderStatus): StaffMove[] {
+  return nextStatuses(from).filter((status): status is StaffMove => status !== "REFUNDED");
+}
+
+/**
+ * What staff read instead of buttons once an order has run its course.
+ *
+ * DELIVERED is not terminal in the database, but it is the end of the road
+ * here: the only thing that reopens it is a refund request.
+ */
+const NO_ACTION_NOTES: Partial<Record<OrderStatus, string>> = {
+  DELIVERED:
+    "Delivered and complete. It reopens only if the customer requests a refund, which appears in the queue below.",
+  CANCELLED: "Cancelled. Nothing further to do here.",
+};
 
 function OrderDetail({
   order,
@@ -34,7 +57,7 @@ function OrderDetail({
   order: Order;
   onStatusChange: (status: OrderStatus) => void;
 }) {
-  const moves = nextStatuses(order.status);
+  const moves = staffMoves(order.status);
 
   return (
     <div className="border-t border-border-subtle bg-surface-container-low p-5">
@@ -111,8 +134,9 @@ function OrderDetail({
 
           <p className="mt-6 text-label-sm uppercase tracking-widest text-text-muted">Actions</p>
           {moves.length === 0 ? (
-            <p className="mt-3 text-body-md text-text-muted">
-              {ORDER_STATUS_LABELS[order.status]} is final — nothing further to do.
+            <p className="mt-3 max-w-prose text-body-md text-text-muted">
+              {NO_ACTION_NOTES[order.status] ??
+                `${ORDER_STATUS_LABELS[order.status]} is final. Nothing further to do.`}
             </p>
           ) : (
             <div className="mt-3 flex flex-wrap gap-2">
@@ -130,12 +154,6 @@ function OrderDetail({
                 </button>
               ))}
             </div>
-          )}
-          {order.paymentMethod === "cod" && !isTerminalStatus(order.status) && (
-            <p className="mt-3 max-w-prose text-label-sm text-marketplace-bronze">
-              Refunds are recorded here only — moving money back to the customer needs a payment
-              provider, which isn&apos;t wired up yet.
-            </p>
           )}
         </div>
       </div>
@@ -164,9 +182,16 @@ export function OrderManager() {
   async function handleStatusChange(order: Order, status: OrderStatus) {
     const updated = await orderStore.updateStatus(order.id, status);
     if (!updated) {
+      // The store returns null for illegal transitions and for write failures
+      // (RLS, trigger errors). Prefer the legal-move message only when the UI
+      // somehow offered one that `nextStatuses` would refuse — otherwise say
+      // the save failed so staff don't chase a transition rule that is fine.
+      const offered = nextStatuses(order.status).includes(status);
       toast(
-        `An order that's ${ORDER_STATUS_LABELS[order.status].toLowerCase()} can't move to ${ORDER_STATUS_LABELS[status].toLowerCase()}.`,
-        "info"
+        offered
+          ? "Couldn't update that order. Refresh and try again."
+          : `An order that's ${ORDER_STATUS_LABELS[order.status].toLowerCase()} can't move to ${ORDER_STATUS_LABELS[status].toLowerCase()}.`,
+        offered ? "error" : "info"
       );
       return;
     }
@@ -180,9 +205,9 @@ export function OrderManager() {
   return (
     <section>
       <h2 className="font-display text-headline-sm">Orders</h2>
-      <p className="mt-1 text-label-sm text-marketplace-bronze">
-        Cancelling is only offered before delivery; afterwards the money comes back as a refund,
-        which is final.
+      <p className="mt-1 max-w-prose text-label-sm text-marketplace-bronze">
+        Cancelling is only offered before delivery. Once an order is delivered it is complete, and
+        the only way back is a refund the customer has asked for.
       </p>
 
       <div className="mt-4 overflow-x-auto border border-border-subtle">
@@ -212,7 +237,7 @@ export function OrderManager() {
                   <td className="px-4 py-3">{order.items.length}</td>
                   <td className="px-4 py-3 whitespace-nowrap">{PKR(order.total)}</td>
                   <td className="px-4 py-3 text-label-sm uppercase tracking-widest text-marketplace-bronze">
-                    {order.referralCode ?? <span className="text-text-muted">—</span>}
+                    {order.referralCode ?? <span className="text-text-muted">-</span>}
                   </td>
                   <td className="px-4 py-3 text-label-sm uppercase text-text-muted">
                     {ORDER_STATUS_LABELS[order.status]}
@@ -266,9 +291,14 @@ export function OrderManager() {
           </div>
         ))}
 
+      {/* Approving a request here refunds an order in the table above, so the
+          queue tells this component to reload rather than owning its own copy
+          of the orders. */}
+      <RefundQueue onReviewed={() => void refresh()} />
+
       {/* A "Sample Orders" fixture table used to sit here, to make the
           dashboard look lived-in. Orders are real now, so it was two tables
-          where one of them had to be invented — and a fixture beside real data
+          where one of them had to be invented, and a fixture beside real data
           is the kind of thing someone eventually reads as fact. */}
     </section>
   );

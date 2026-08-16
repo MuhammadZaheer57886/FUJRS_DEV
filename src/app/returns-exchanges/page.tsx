@@ -53,7 +53,7 @@ export default function ReturnsExchangesPage() {
     e.preventDefault();
     if (!orderNumber.trim() || !email.trim()) return;
     setFound(
-      "Order lookup isn't available yet — please reach our concierge team directly and they'll pull up your order for you."
+      "Order lookup isn't available yet. Please reach our concierge team directly and they'll pull up your order for you."
     );
   }
 

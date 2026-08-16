@@ -11,7 +11,6 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseConfigured } from "@/lib/data/
  * page renders — Server Components can't set cookies.
  */
 export async function middleware(request: NextRequest) {
-  
   if (!supabaseConfigured || process.env.NEXT_PUBLIC_DATA_BACKEND !== "supabase") {
     return NextResponse.next({ request });
   }

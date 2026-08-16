@@ -5,15 +5,18 @@ import { Button } from "@/components/ui/Button";
 import { TextAreaField, TextField, SelectField } from "@/components/ui/Field";
 import { ChipMultiSelect, ColorSwatchPicker, OptionSelect } from "@/components/ui/OptionPickers";
 import { ImageGalleryUpload } from "@/components/ui/ImageGalleryUpload";
+import { StorefrontPreview } from "@/components/dashboard/StorefrontPreview";
 import { useToast } from "@/components/ui/Toast";
+import { cropToDataUrl } from "@/lib/downscaleImage";
 import { productTaxonomy } from "@/lib/data";
 import {
   PRODUCT_GENDERS,
+  type CatalogItem,
   type CategoryOption,
-  type NewCatalogItem,
+  type ProductFormPhoto,
   type ProductGender,
+  type ProductInput,
   type ProductTaxonomy,
-  type UploadedImage,
 } from "@/lib/data";
 
 const MIN_DESCRIPTION_LENGTH = 10;
@@ -27,7 +30,7 @@ const emptyForm = {
   categoryId: null as string | null,
   fabricId: null as string | null,
   fabricWeightGsm: "",
-  colorId: null as string | null,
+  colorIds: [] as string[],
   badgeId: null as string | null,
 
   sizeScaleId: null as string | null,
@@ -63,6 +66,52 @@ function optionalNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/** A number field as the form holds it: a string, blank when there's no value. */
+const numberField = (value: number | null) => (value === null ? "" : String(value));
+
+/**
+ * An existing product, back in the shape the form edits.
+ *
+ * Needs the taxonomy because a `CatalogItem` carries embroidery as LABELS and
+ * the form works in IDS. A technique that has since been deleted resolves to
+ * nothing and is dropped rather than silently re-submitted as a label the
+ * junction table has no row for.
+ */
+function formFromItem(item: CatalogItem, lists: ProductTaxonomy): Form {
+  return {
+    title: item.title,
+    price: String(item.price),
+    compareAtPrice: numberField(item.compareAtPrice),
+    gender: item.gender,
+
+    categoryId: item.categoryId || null,
+    fabricId: item.fabricId || null,
+    fabricWeightGsm: numberField(item.fabricWeightGsm),
+    colorIds: item.colors.map((color) => color.id).filter(Boolean),
+    badgeId: item.badgeId,
+
+    sizeScaleId: item.sizeScaleId,
+    sizes: item.sizes,
+
+    stock: String(item.stock),
+    sku: item.sku ?? "",
+    description: item.description,
+    isNewArrival: item.isNewArrival,
+    stitchingEligible: item.stitchingEligible,
+    stitchingAddOn: numberField(item.stitchingAddOn),
+
+    meters: numberField(item.meters),
+    metersNote: item.metersNote ?? "",
+    embroideryIds: item.embroidery
+      .map((label) => lists.embroideryTechniques.find((option) => option.label === label)?.id)
+      .filter((id): id is string => Boolean(id)),
+    dupattaLength: numberField(item.dupattaLength),
+    dupattaFabricId: item.dupattaFabricId,
+    dupattaFinish: item.dupattaFinish ?? "",
+    heritageStory: item.heritageStory ?? "",
+  };
+}
+
 function validate(form: Form, category: CategoryOption | null): FormErrors {
   const errors: FormErrors = {};
   if (!form.title.trim()) errors.title = "Give the piece a name.";
@@ -86,7 +135,9 @@ function validate(form: Form, category: CategoryOption | null): FormErrors {
   // error the person filling the form can do nothing with.
   if (!form.categoryId) errors.categoryId = "Choose a category.";
   if (!form.fabricId) errors.fabricId = "Choose a fabric.";
-  if (!form.colorId) errors.colorId = "Choose a colour — the shop filters on it.";
+  if (form.colorIds.length === 0) {
+    errors.colorIds = "Choose at least one colour, because the shop filters on it.";
+  }
 
   if (form.fabricWeightGsm.trim()) {
     const weight = Number(form.fabricWeightGsm);
@@ -173,8 +224,10 @@ function CheckboxField({
 }
 
 /**
- * One product form for both paths — a Vendor submitting for review and an
- * Admin publishing directly. Only the copy on the submit button differs.
+ * One product form for publishing a new piece and for editing one already in
+ * the catalogue. `initial` is the only difference, plus the copy on the button:
+ * a second form for edits is how the two drift until a field can be set but
+ * never changed.
  *
  * Every taxonomy field is a PICK from a managed list rather than free text
  * (migration 18): typed values used to become permanent storefront filter
@@ -189,21 +242,33 @@ export function ProductForm({
   onSubmit,
   onCancel,
   canManageOptions = false,
+  initial,
 }: {
   submitLabel: string;
   /**
    * Awaited: the button spins until it settles. Reject to keep the form
    * filled in — a failed save must not cost the user everything they typed.
    */
-  onSubmit: (item: NewCatalogItem) => Promise<void>;
+  onSubmit: (item: ProductInput) => Promise<void>;
   onCancel?: () => void;
   /** Super Admins manage the lists; everyone else is told who can. */
   canManageOptions?: boolean;
+  /**
+   * The piece being edited. Absent for a new one.
+   *
+   * Its photos come back as `kind: "stored"`: they can be reordered, removed
+   * and re-framed, but not re-cropped, because their pixels are on Storage
+   * rather than in this page.
+   */
+  initial?: CatalogItem;
 }) {
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   const [form, setForm] = useState(emptyForm);
-  const [images, setImages] = useState<UploadedImage[]>([]);
+  const [images, setImages] = useState<ProductFormPhoto[]>(() =>
+    (initial?.images ?? []).map((photo) => ({ kind: "stored" as const, ...photo }))
+  );
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [taxonomy, setTaxonomy] = useState<ProductTaxonomy | null>(null);
@@ -214,7 +279,11 @@ export function ProductForm({
     productTaxonomy
       .read()
       .then((lists) => {
-        if (!cancelled) setTaxonomy(lists);
+        if (cancelled) return;
+        setTaxonomy(lists);
+        // Filled in here rather than in `useState`, because resolving the
+        // embroidery labels back to ids needs the lists to have arrived.
+        if (initial) setForm(formFromItem(initial, lists));
       })
       .catch(() => {
         if (!cancelled) setLoadFailed(true);
@@ -222,6 +291,9 @@ export function ProductForm({
     return () => {
       cancelled = true;
     };
+    // Loaded once. Re-running on a new `initial` would throw away edits in
+    // progress; the caller remounts with a `key` when it wants a fresh form.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function update<K extends keyof Form>(key: K, value: Form[K]) {
@@ -279,7 +351,11 @@ export function ProductForm({
           // A scale with exactly one size ("Unstitched", "One Size") has nothing
           // to choose, so tick it rather than making it a required extra click.
           sizes:
-            prev.sizes.length > 0 ? prev.sizes : scale && scale.values.length === 1 ? scale.values : [],
+            prev.sizes.length > 0
+              ? prev.sizes
+              : scale && scale.values.length === 1
+                ? scale.values
+                : [],
           meters: prev.meters || (next.defaultMeters !== null ? String(next.defaultMeters) : ""),
         };
       });
@@ -324,6 +400,27 @@ export function ProductForm({
 
     setSubmitting(true);
     try {
+      // The zoom set in the preview is CSS until here. Baking it into the
+      // pixels means the shop serves the tight crop as a smaller file, instead
+      // of downloading the whole frame and scaling it up in every tile. Photos
+      // already on the product were cropped when they were first uploaded.
+      let cropped: ProductFormPhoto[];
+      try {
+        cropped = await Promise.all(
+          images.map(async (photo) =>
+            photo.kind === "upload"
+              ? { kind: "upload" as const, ...(await cropToDataUrl(photo)) }
+              : photo
+          )
+        );
+      } catch (err) {
+        console.error("[ProductForm] crop failed", err);
+        toast("Couldn't apply the image crop. Reset it in the preview and try again.", "error");
+        // `finally` below clears `submitting`; nothing has been sent anywhere,
+        // so the form is left exactly as it was typed.
+        return;
+      }
+
       await onSubmit({
         title: form.title.trim(),
         price: Number(form.price),
@@ -335,7 +432,7 @@ export function ProductForm({
         categoryId: form.categoryId as string,
         fabricId: form.fabricId as string,
         fabricWeightGsm: optionalNumber(form.fabricWeightGsm),
-        colorId: form.colorId as string,
+        colorIds: form.colorIds,
         badgeId: form.badgeId,
 
         sizeScaleId: form.sizeScaleId,
@@ -355,11 +452,16 @@ export function ProductForm({
         dupattaFabricId: category?.hasDupatta ? form.dupattaFabricId : null,
         dupattaFinish: category?.hasDupatta ? optional(form.dupattaFinish) : null,
         heritageStory: optional(form.heritageStory),
-        images,
+        images: cropped,
       });
 
-      setForm(emptyForm);
-      setImages([]);
+      // Only a create clears the form. Blanking an edit the moment it saves
+      // would wipe the screen the person is still looking at.
+      if (!initial) {
+        setForm(emptyForm);
+        setImages([]);
+      }
+      setPreviewOpen(false);
     } catch (err) {
       // The caller toasts the reason. Log here so a missed toast still leaves
       // a trace for whoever has DevTools open.
@@ -397,6 +499,30 @@ export function ProductForm({
       className="border border-outline-variant p-8"
     >
       <ImageGalleryUpload images={images} onChange={setImages} />
+
+      {/* Only offered once there is something to preview: an empty dialog would
+          be a button that opens nothing. */}
+      {images.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Button type="button" variant="secondary" onClick={() => setPreviewOpen(true)}>
+            Preview on the shop
+          </Button>
+          <p className="font-body text-label-sm text-text-muted">
+            See the shapes each page crops these photos to, and set what stays in frame.
+          </p>
+        </div>
+      )}
+
+      <StorefrontPreview
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        images={images}
+        onChange={setImages}
+        title={form.title}
+        price={form.price}
+        badge={taxonomy.badges.find((option) => option.id === form.badgeId)?.label ?? null}
+        gender={form.gender}
+      />
 
       {!canManageOptions && (
         // Never a dead control: the person filling this in needs to know why
@@ -453,12 +579,12 @@ export function ProductForm({
         />
         <div className="sm:col-span-2">
           <ColorSwatchPicker
-            label="Colour"
+            label="Colours"
             colors={taxonomy.colors}
-            value={form.colorId}
-            onChange={(id) => update("colorId", id)}
-            error={errors.colorId}
-            hint="The shop filters on the colour's family, not its name — so “Midnight Blue” and “Deep Navy” sit together under Blue."
+            selected={form.colorIds}
+            onChange={(ids) => update("colorIds", ids)}
+            error={errors.colorIds}
+            hint="Pick every colourway this piece comes in. The first one is what listings show. The shop filters on a colour's family, not its name, so “Midnight Blue” and “Deep Navy” sit together under Blue."
           />
         </div>
         <div className="sm:col-span-2">
@@ -513,7 +639,7 @@ export function ProductForm({
           value={form.compareAtPrice}
           onChange={(e) => update("compareAtPrice", e.target.value)}
           error={errors.compareAtPrice}
-          hint="Optional — shown struck through beside the price."
+          hint="Optional. Shown struck through beside the price."
           placeholder="32000"
         />
         <TextField
@@ -563,7 +689,7 @@ export function ProductForm({
 
       <Group
         title="Product page details"
-        hint="All optional — each one fills a row in the specs panel on the product page."
+        hint="All optional. Each one fills a row in the specs panel on the product page."
       >
         <div className="sm:col-span-2">
           <CheckboxField
@@ -646,7 +772,7 @@ export function ProductForm({
             rows={3}
             value={form.heritageStory}
             onChange={(e) => update("heritageStory", e.target.value)}
-            hint="The craft behind the piece — where it was made and by whom."
+            hint="The craft behind the piece: where it was made and by whom."
           />
         </div>
       </Group>
@@ -662,7 +788,7 @@ export function ProductForm({
         )}
         {submitting && (
           <p className="font-body text-label-sm text-text-muted">
-            Saving — images can take a moment.
+            Saving. Images can take a moment.
           </p>
         )}
       </div>

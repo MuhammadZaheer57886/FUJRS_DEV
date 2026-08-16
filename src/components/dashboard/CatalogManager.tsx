@@ -8,7 +8,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ProductForm } from "@/components/dashboard/ProductForm";
 import { CatalogTable } from "@/components/dashboard/CatalogTable";
 import { catalog, StoreWriteError } from "@/lib/data";
-import type { CatalogItem, NewCatalogItem } from "@/lib/data";
+import type { CatalogItem, ProductInput } from "@/lib/data";
 
 /**
  * Catalogue management for the roles that can publish — shared by the Admin
@@ -31,7 +31,7 @@ export function CatalogManager() {
     void refresh();
   }, [refresh]);
 
-  async function handleAdd(input: NewCatalogItem) {
+  async function handleAdd(input: ProductInput) {
     if (!session) {
       toast("You need to be signed in to publish a product.", "error");
       throw new StoreWriteError("You need to be signed in to publish a product.");
@@ -78,7 +78,7 @@ export function CatalogManager() {
         <div>
           <h2 className="font-display text-headline-sm">Catalogue</h2>
           <p className="mt-1 text-label-sm text-marketplace-bronze">
-            Pieces you add here publish immediately — they appear in the shop straight away.
+            Pieces you add here publish immediately; they appear in the shop straight away.
           </p>
         </div>
         <Button variant="primary" onClick={() => setShowForm((v) => !v)}>
@@ -104,6 +104,7 @@ export function CatalogManager() {
         <CatalogTable
           items={items}
           emptyMessage="No products added yet."
+          hrefFor={(item) => `/dashboard/products/${item.slug}`}
           actions={(item) => (
             <button
               onClick={() => setPendingRemoval(item)}
@@ -120,7 +121,7 @@ export function CatalogManager() {
         title="Remove this product?"
         message={
           <>
-            “{pendingRemoval?.title}” comes off the shop straight away. This can’t be undone — the
+            “{pendingRemoval?.title}” comes off the shop straight away. This can’t be undone: the
             piece has to be added again from scratch.
           </>
         }

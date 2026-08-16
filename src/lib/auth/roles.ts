@@ -27,7 +27,7 @@ export function canAccessDashboard(role: AppRole | null | undefined): boolean {
 export const ROLE_WORKSPACE: Record<StaffRole, { summary: string; duties: string[] }> = {
   SUPER_ADMIN: {
     summary:
-      "Full access across FUJRS — you manage who else gets in, and what they're allowed to see.",
+      "Full access across FUJRS. You manage who else gets in, and what they're allowed to see.",
     duties: [
       "Create and manage dashboard users",
       "Assign roles and access permissions",
@@ -35,7 +35,7 @@ export const ROLE_WORKSPACE: Record<StaffRole, { summary: string; duties: string
     ],
   },
   ADMIN: {
-    summary: "Day-to-day running of the store — orders, catalogue submissions, and performance.",
+    summary: "Day-to-day running of the store: orders, catalogue submissions, and performance.",
     duties: [
       "Review orders and revenue",
       "Approve or reject vendor product drafts",
@@ -52,7 +52,7 @@ export const ROLE_WORKSPACE: Record<StaffRole, { summary: string; duties: string
     ],
   },
   TAILOR: {
-    summary: "Your bespoke queue — every made-to-measure order assigned to your atelier.",
+    summary: "Your bespoke queue: every made-to-measure order assigned to your atelier.",
     duties: [
       "Work through the measurement queue",
       "Update stitching status as each piece progresses",

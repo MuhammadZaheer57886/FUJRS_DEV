@@ -35,11 +35,19 @@ const TABS: { kind: TaxonomyKind; label: string; hint: string }[] = [
     label: "Categories",
     hint: "The primary taxonomy. Each one carries the defaults a new product inherits.",
   },
-  { kind: "fabrics", label: "Fabrics", hint: "Base fabric only — weight is set per product." },
-  { kind: "colors", label: "Colours", hint: "The name shown on the page, plus the family the shop filters on." },
+  { kind: "fabrics", label: "Fabrics", hint: "Base fabric only. Weight is set per product." },
+  {
+    kind: "colors",
+    label: "Colours",
+    hint: "The name shown on the page, plus the family the shop filters on.",
+  },
   { kind: "badges", label: "Badges", hint: "Short labels on the product card." },
   { kind: "sizeScales", label: "Size Scales", hint: "Ordered size sets a product chooses from." },
-  { kind: "embroideryTechniques", label: "Embroidery", hint: "Ticked per product, many at a time." },
+  {
+    kind: "embroideryTechniques",
+    label: "Embroidery",
+    hint: "Ticked per product, many at a time.",
+  },
 ];
 
 const inputClass =
@@ -118,10 +126,7 @@ export function TaxonomyManager() {
       toast(success, "success");
       return true;
     } catch (err) {
-      toast(
-        err instanceof StoreWriteError ? err.message : "Couldn't update that list.",
-        "info"
-      );
+      toast(err instanceof StoreWriteError ? err.message : "Couldn't update that list.", "info");
       return false;
     } finally {
       setBusy(false);
@@ -172,8 +177,8 @@ export function TaxonomyManager() {
     <section className="mt-12">
       <h2 className="font-display text-headline-sm">Product Lists</h2>
       <p className="mt-1 text-label-sm text-marketplace-bronze">
-        What the product form offers. Options are archived, never deleted — published products
-        reference them.
+        What the product form offers. Options are archived, never deleted, because published
+        products reference them.
       </p>
 
       <div className="mt-6 flex flex-wrap gap-2">
@@ -244,7 +249,9 @@ export function TaxonomyManager() {
 
       <ul className="mt-4 divide-y divide-outline-variant border border-outline-variant">
         {visible.length === 0 && (
-          <li className="px-4 py-3 font-body text-body-md text-text-muted">Nothing on this list.</li>
+          <li className="px-4 py-3 font-body text-body-md text-text-muted">
+            Nothing on this list.
+          </li>
         )}
         {visible.map((option) => (
           <li key={option.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
@@ -258,7 +265,10 @@ export function TaxonomyManager() {
                 </span>
               )}
               {kind === "sizeScales" && (
-                <span className="text-text-muted"> · {(option as SizeScaleOption).values.join(", ")}</span>
+                <span className="text-text-muted">
+                  {" "}
+                  · {(option as SizeScaleOption).values.join(", ")}
+                </span>
               )}
               {option.archived && (
                 <span className="ml-2 border border-outline-variant px-2 py-0.5 font-label-sm text-label-sm uppercase text-text-muted">

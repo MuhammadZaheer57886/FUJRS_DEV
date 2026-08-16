@@ -13,6 +13,7 @@ import { products } from "@/data/products";
 import type { CatalogReadStore } from "../ports";
 import type { CatalogItem } from "../types";
 import { BADGES, CATEGORIES, COLORS, FABRICS, SIZE_SCALES, findByLabel } from "./taxonomy";
+import { CENTRE_FOCAL } from "@/lib/productPhoto";
 
 /**
  * Stock the static pieces are treated as carrying. The array has no stock
@@ -44,7 +45,13 @@ const items: CatalogItem[] = products
     const weightMatch = /(\d+)\s*gm/i.exec(product.fabric);
     const fabricWeightGsm = weightMatch ? Number(weightMatch[1]) : null;
     const fabricFallback = fabricWeightGsm
-      ? findByLabel(FABRICS, product.fabric.replace(/\(\s*\d+\s*gm\s*\)/i, "").replace(/^\s*pure\s+/i, "").trim())
+      ? findByLabel(
+          FABRICS,
+          product.fabric
+            .replace(/\(\s*\d+\s*gm\s*\)/i, "")
+            .replace(/^\s*pure\s+/i, "")
+            .trim()
+        )
       : undefined;
     const resolvedFabric = fabric ?? fabricFallback;
 
@@ -79,10 +86,16 @@ const items: CatalogItem[] = products
       category: category?.label ?? product.category,
       categoryId: category?.id ?? "",
       gender: product.gender,
-      color: color?.label ?? product.color,
-      colorId: color?.id ?? "",
-      colorHex: color?.hex ?? "#808080",
-      colorFamily: color?.family ?? "MULTI",
+      // The hand-written array gives a piece one colour; the domain shape holds
+      // however many it is offered in, so this is a one-element list.
+      colors: [
+        {
+          id: color?.id ?? "",
+          label: color?.label ?? product.color,
+          hex: color?.hex ?? "#808080",
+          family: color?.family ?? "MULTI",
+        },
+      ],
       sizes: product.sizes,
       sizeScaleId: scale?.id ?? null,
       stock: ASSUMED_STOCK,
@@ -106,7 +119,16 @@ const items: CatalogItem[] = products
       dupattaFabricId: dupattaFabric?.id ?? null,
       dupattaFinish,
       heritageStory: heritageStory ?? null,
-      images: product.images,
+      // Seed photography has no focal point of its own, so it crops centred,
+      // exactly as it did before focal points existed.
+      images: product.images.map((url, i) => ({
+        // No rows behind these, so the id is only ever a React key. Derived
+        // from the slug so it is stable across reloads.
+        id: `${product.slug}-photo-${i}`,
+        url,
+        focalX: CENTRE_FOCAL,
+        focalY: CENTRE_FOCAL,
+      })),
       // No rating until somebody reviews it. The static array used to carry
       // figures invented by the design tool, which contradicted the reviews
       // section on the very same page.

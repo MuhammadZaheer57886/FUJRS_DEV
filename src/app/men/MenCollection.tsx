@@ -1,14 +1,33 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import type { CatalogItem } from "@/lib/data";
 import { EmptyCatalogue } from "@/components/ui/EmptyCatalogue";
+import { HeroSlideshow, type HeroSlide } from "@/components/ui/HeroSlideshow";
 import { Reveal } from "@/components/ui/Reveal";
 import { MenProductTile } from "@/components/product/MenProductTile";
 import { LinkButton } from "@/components/ui/Button";
 import { SlidingUnderline, useSlidingUnderline } from "@/components/ui/SlidingUnderline";
+
+/**
+ * The hero photography, in the order it cycles.
+ *
+ * The first entry is what a visitor sees on arrival and is the one preloaded,
+ * so it should stay the strongest frame. Both are shot at roughly 16:9, which
+ * is why the section can hold a single 43:24 box for all of them without any
+ * one being cropped.
+ */
+const menHeroSlides: HeroSlide[] = [
+  {
+    src: "/images/men-hero.webp",
+    alt: "A man in a cream sherwani and matching trousers walking through a sunlit stone arcade.",
+  },
+  {
+    src: "/images/men-hero-2.webp",
+    alt: "A man in a bronze embroidered kurta standing before the lit stone facade of a colonial building at night.",
+  },
+];
 
 const fabricTabs = ["All Fabrics", "Egyptian Cotton", "Latha", "Karandi", "Wash & Wear"];
 
@@ -40,26 +59,15 @@ export function MenCollection({ products }: { products: CatalogItem[] }) {
 
   return (
     <div>
-      {/* Hero — same reasoning as the homepage: from `md` up the section takes
+      {/* Hero: same reasoning as the homepage: from `md` up the section takes
           the photograph's own 43:24 ratio so nothing is cropped and the model
           is visible head to foot. A fixed 700px was wider than that at desktop
           widths, which trimmed the top and bottom off. */}
       <section className="relative h-[600px] md:h-auto md:aspect-[43/24] flex items-center overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          {/* See the note on the homepage hero — this is the LCP element, so
-              next/image with priority rather than a CSS background, which the
-              browser cannot preload. */}
-          <Image
-            src="/images/men-hero.webp"
-            alt="A man in a cream sherwani and matching trousers walking through a sunlit stone arcade."
-            fill
-            priority
-            sizes="100vw"
-            quality={85}
-            className="object-cover object-center"
-          />
-          <div className="absolute inset-0 bg-black/20" />
-        </div>
+        {/* See the note on the homepage hero: the opening frame is the LCP
+            element, so next/image with priority rather than a CSS background,
+            which the browser cannot preload. */}
+        <HeroSlideshow slides={menHeroSlides} />
         <div className="relative z-10 max-w-container-max mx-auto px-gutter w-full">
           <div className="max-w-2xl text-white">
             <span className="font-label-md text-label-md uppercase tracking-[0.3em] mb-4 block">

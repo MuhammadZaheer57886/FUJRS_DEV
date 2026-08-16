@@ -40,7 +40,7 @@ export function NewsletterSection() {
         </p>
         {subscribed ? (
           <p className="font-label-md text-label-md uppercase tracking-widest text-tertiary-fixed-dim">
-            You&apos;re in — welcome to the inner circle.
+            You&apos;re in. Welcome to the inner circle.
           </p>
         ) : (
           <form className="flex flex-col md:flex-row gap-4" onSubmit={(e) => void handleSubmit(e)}>

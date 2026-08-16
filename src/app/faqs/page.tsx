@@ -9,7 +9,7 @@ const faqs = [
   },
   {
     q: "Can I customize a ready-to-wear piece?",
-    a: "Yes — most unstitched fabric pieces can be sent through our Atelier for custom stitching. Look for the 'Get It Stitched' option on the product page, or start directly from the Tailoring page.",
+    a: "Yes, most unstitched fabric pieces can be sent through our Atelier for custom stitching. Look for the 'Get It Stitched' option on the product page, or start directly from the Tailoring page.",
   },
   {
     q: "What is your return policy?",
@@ -21,7 +21,7 @@ const faqs = [
   },
   {
     q: "Do you ship internationally?",
-    a: "We currently ship within Pakistan. International shipping is on our roadmap — sign up for our newsletter to be notified.",
+    a: "We currently ship within Pakistan. International shipping is on our roadmap. Sign up for our newsletter to be notified.",
   },
   {
     q: "How do I book a tailoring appointment?",

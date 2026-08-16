@@ -217,19 +217,19 @@ export function SuperAdminView() {
             <div className="border border-border-subtle p-6">
               <p className="text-label-sm uppercase text-text-muted">Total Orders</p>
               <p className="mt-2 font-display text-headline-sm">
-                {stats ? stats.totalOrders.toLocaleString() : "—"}
+                {stats ? stats.totalOrders.toLocaleString() : "-"}
               </p>
             </div>
             <div className="border border-border-subtle p-6">
               <p className="text-label-sm uppercase text-text-muted">Total Revenue</p>
               <p className="mt-2 font-display text-headline-sm">
-                {stats ? `PKR ${stats.totalRevenue.toLocaleString()}` : "—"}
+                {stats ? `PKR ${stats.totalRevenue.toLocaleString()}` : "-"}
               </p>
             </div>
             <div className="border border-border-subtle p-6">
               <p className="text-label-sm uppercase text-text-muted">Total Users</p>
               <p className="mt-2 font-display text-headline-sm">
-                {usersData ? usersData.users.length.toLocaleString() : "—"}
+                {usersData ? usersData.users.length.toLocaleString() : "-"}
               </p>
             </div>
             <div className="border border-border-subtle p-6">
@@ -237,7 +237,7 @@ export function SuperAdminView() {
               <p className="mt-2 font-display text-headline-sm">
                 {usersData
                   ? usersData.users.filter((u) => u.role !== "CUSTOMER").length.toLocaleString()
-                  : "—"}
+                  : "-"}
               </p>
             </div>
           </div>
@@ -286,7 +286,7 @@ export function SuperAdminView() {
           <h2 className="font-display text-headline-sm">Vendor Commission</h2>
           <p className="mt-1 max-w-prose text-label-sm text-marketplace-bronze">
             Vendors market products through their referral link and earn on what sells. Only you set
-            the rate — changes here update this screen only, they aren&apos;t saved anywhere yet.
+            the rate. Changes here update this screen only, they aren&apos;t saved anywhere yet.
           </p>
 
           <div className="mt-4 overflow-x-auto border border-border-subtle">
@@ -355,10 +355,10 @@ export function SuperAdminView() {
                           RLS scopes `commissions` and `referral_clicks` to the
                           vendor, so reading them across vendors needs a server
                           route that doesn't exist yet. An em dash until it
-                          does — never an invented number. */}
-                      <td className="px-4 py-3 text-text-muted">—</td>
-                      <td className="px-4 py-3 text-text-muted">—</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-text-muted">—</td>
+                          does, never an invented number. */}
+                      <td className="px-4 py-3 text-text-muted">-</td>
+                      <td className="px-4 py-3 text-text-muted">-</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-text-muted">-</td>
                     </tr>
                   );
                 })}
@@ -378,7 +378,7 @@ export function SuperAdminView() {
         <div className="mt-8">
           <h2 className="font-display text-headline-sm">Create User</h2>
           <p className="mt-1 text-label-sm text-marketplace-bronze">
-            Adds a user to this screen only — not saved anywhere yet.
+            Adds a user to this screen only, not saved anywhere yet.
           </p>
           <form
             onSubmit={(e) => void handleCreateUser(e)}
@@ -454,7 +454,7 @@ export function SuperAdminView() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {u.email || <span className="text-text-muted">—</span>}
+                      {u.email || <span className="text-text-muted">-</span>}
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-label-sm uppercase text-text-muted">
@@ -470,8 +470,8 @@ export function SuperAdminView() {
             </table>
           </div>
           <p className="mt-2 text-label-sm text-text-muted">
-            Editing an existing user&apos;s role or deactivating an account isn&apos;t wired up yet
-            — there&apos;s no status column on profiles for it (see TASKS.md).
+            Editing an existing user&apos;s role or deactivating an account isn&apos;t wired up yet,
+            because there&apos;s no status column on profiles for it (see TASKS.md).
           </p>
         </div>
       )}
@@ -480,7 +480,7 @@ export function SuperAdminView() {
         <div className="mt-8">
           <p className="mb-4 max-w-prose text-label-sm text-marketplace-bronze">
             Saved to the database and enforced there. Super Admin isn&apos;t listed because it
-            bypasses this grid entirely — access it can&apos;t lose is access nobody can
+            bypasses this grid entirely, because access it can&apos;t lose is access nobody can
             accidentally remove.
           </p>
 

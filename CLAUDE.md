@@ -133,3 +133,9 @@ No test runner is configured.
   literals (e.g. `"Awaiting Measurements"`, `"Quality Check"`, `"CONFIRMED"`)
   come from `src/lib/stitchingStatus.ts` / `src/lib/orderStatus.ts` or a
   named constant — not repeated literals scattered across files.
+- **No em-dashes, anywhere**: never write `—` (or `–`) in this project. That
+  covers on-screen copy, toast messages, `alt`/`aria-label` text, seed data in
+  `src/data/`, and error strings. Use a comma, colon, semicolon, or a full
+  stop, whichever the sentence actually wants. For an empty value in a table
+  cell or stat tile, render a plain `-`. Separator between two labels is `·`.
+  `grep -rn '—' src/` should stay empty for anything rendered.

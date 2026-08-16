@@ -23,7 +23,8 @@ export function CompleteTheLook({ items }: { items: CatalogItem[] }) {
             <Link href={`/products/${item.slug}`} className="block">
               <div className="aspect-[4/5] bg-surface-container overflow-hidden relative mb-4">
                 <ProductImage
-                  src={item.images[0]}
+                  src={item.images[0]?.url}
+                  focal={item.images[0]}
                   alt={item.title}
                   fill
                   sizes="(min-width: 768px) 25vw, 50vw"

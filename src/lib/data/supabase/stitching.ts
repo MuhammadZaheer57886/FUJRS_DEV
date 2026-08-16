@@ -59,7 +59,7 @@ function toJob(row: JobRow, references: ReferenceImage[] = []): StitchingJob {
   return {
     id: row.id,
     orderNumber: order?.order_number ?? "",
-    customer: order ? `${order.ship_first_name} ${order.ship_last_name}`.trim() : "—",
+    customer: order ? `${order.ship_first_name} ${order.ship_last_name}`.trim() : "-",
     garment: row.garment_type,
     neckline: row.neckline ?? "",
     sleeve: row.sleeve ?? "",

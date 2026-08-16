@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ProductImage } from "@/components/ui/ProductImage";
 import { ImageLightbox } from "@/components/product/ImageLightbox";
+import type { ProductPhoto } from "@/lib/data";
 
 /**
  * The product gallery: one large image with every other photo as a thumbnail
@@ -12,7 +13,7 @@ import { ImageLightbox } from "@/components/product/ImageLightbox";
  * the fourth photo onwards — an admin who uploaded six saw three. A rail shows
  * however many the piece has.
  */
-export function EditorialGallery({ images, title }: { images: string[]; title: string }) {
+export function EditorialGallery({ images, title }: { images: ProductPhoto[]; title: string }) {
   const [active, setActive] = useState(0);
   const [viewerOpen, setViewerOpen] = useState(false);
 
@@ -24,7 +25,7 @@ export function EditorialGallery({ images, title }: { images: string[]; title: s
               directly rather than through a photo that can't load. */}
           <div
             role="img"
-            aria-label={`${title} — no photography yet`}
+            aria-label={`${title}: no photography yet`}
             className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-surface-container-low text-text-muted"
           >
             <span aria-hidden="true" className="material-symbols-outlined text-3xl opacity-40">
@@ -46,8 +47,8 @@ export function EditorialGallery({ images, title }: { images: string[]; title: s
       <div className="flex flex-col-reverse gap-4 md:flex-row">
         {images.length > 1 && (
           <ul className="flex shrink-0 gap-3 overflow-x-auto md:w-20 md:flex-col md:overflow-x-visible md:overflow-y-auto">
-            {images.map((src, i) => (
-              <li key={`${src}-${i}`} className="shrink-0">
+            {images.map((photo, i) => (
+              <li key={`${photo.url}-${i}`} className="shrink-0">
                 <button
                   type="button"
                   onClick={() => setActive(i)}
@@ -59,7 +60,14 @@ export function EditorialGallery({ images, title }: { images: string[]; title: s
                       : "border-border-subtle opacity-70 hover:opacity-100"
                   }`}
                 >
-                  <ProductImage src={src} alt="" fill sizes="80px" className="object-cover" />
+                  <ProductImage
+                    src={photo.url}
+                    focal={photo}
+                    alt=""
+                    fill
+                    sizes="80px"
+                    className="object-cover"
+                  />
                 </button>
               </li>
             ))}
@@ -74,8 +82,9 @@ export function EditorialGallery({ images, title }: { images: string[]; title: s
             className="group relative block aspect-[4/5] w-full cursor-zoom-in overflow-hidden bg-surface-container"
           >
             <ProductImage
-              src={images[active]}
-              alt={`${title} — view ${active + 1}`}
+              src={images[active].url}
+              focal={images[active]}
+              alt={`${title}, view ${active + 1}`}
               fill
               priority={active === 0}
               sizes="(min-width: 1024px) 50vw, 100vw"

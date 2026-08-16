@@ -178,6 +178,14 @@ create table product_images (
   mime_type     text not null,
   blur_data_url text,
 
+  -- Where the crop is anchored, 0-100, fed straight to CSS object-position.
+  -- The storefront renders one photo into 4:5 grid tiles, a 16:9 Women feature
+  -- tile and a 16:10 Men one; object-cover centres, which loses the neckline
+  -- and hem of a portrait shot in a wide tile. Defaulted to the centred crop
+  -- so every existing row renders unchanged.
+  focal_x       smallint not null default 50 check (focal_x between 0 and 100),
+  focal_y       smallint not null default 50 check (focal_y between 0 and 100),
+
   created_at    timestamptz not null default now()
 );
 create index on product_images (product_id, position);
@@ -230,7 +238,7 @@ Migration 18 replaces each with a managed list, referenced by id:
 | --- | --- |
 | `product_categories` | `gender` scope, plus the defaults a new product inherits |
 | `fabrics` | — (weight moved to `products.fabric_weight_gsm`) |
-| `colors` | `hex` for the swatch, `family` for the filter axis |
+| `colors` | `hex` for the swatch, `family` for the filter axis; many-to-many via `product_colors` (migration 21) |
 | `badges` | — |
 | `size_scales` | `size_values text[]`, ordered |
 | `embroidery_techniques` | many-to-many via `product_embroidery` |
@@ -247,6 +255,17 @@ facets on. "Midnight Blue" and "Deep Navy" both file under `BLUE`, so the filter
 list stays 16 rows however many colours are added. The family is an enum rather
 than a table on purpose — it is the filter axis, and an editable axis drifts
 straight back to the problem being fixed.
+
+**A product has several colours, not one.** Migration 18 gave `products` a
+single `color_id`, because the form offered a single swatch. A piece is cut in
+three colourways off one pattern, so that forced publishing it three times, with
+three SKUs and three stock counts to keep in step. Migration 21 adds
+`product_colors (product_id, color_id, position)` — the same junction shape as
+`product_embroidery`, plus an order, because position 0 is the colour a listing
+tile shows next to the title. A product now contributes a facet per colour, so a
+red-and-blue piece is found under both. `products.color_id` stays for now,
+populated with the primary colour and read by nothing, and a later migration
+drops it — the same expand-then-contract split as 18 and 19.
 
 **Three columns were split, not just constrained.** `meters` was
 `"4.5 Meters (Standard Suit)"` → `meters_length numeric` + `meters_note`.
@@ -348,10 +367,14 @@ not a boundary (per [CLAUDE.md](./CLAUDE.md)).
 ```
 CONFIRMED  → PROCESSING, CANCELLED
 PROCESSING → DELIVERED, CANCELLED
-DELIVERED  → REFUNDED
+DELIVERED  → REFUNDED   (only with an approved refund request, see §3.1)
 CANCELLED  → REFUNDED
 REFUNDED   → (terminal)
 ```
+
+`orders.delivered_at` is stamped by the same trigger on the way into
+DELIVERED. The return window is counted from delivery rather than from the
+order date, so the date has to live on the row the window is checked against.
 
 An audit trail is worth having, since refunds are money moving:
 
@@ -367,6 +390,56 @@ create table order_status_events (
 );
 create index on order_status_events (order_id, created_at);
 ```
+
+### 3.1 Refund requests
+
+Migration `20260816000023_refund_requests.sql`. Rules in `src/lib/refunds.ts`.
+
+A refund used to be something staff did TO an order: the dashboard offered a
+Refund button on any delivered order and the trigger accepted the move. That
+records money going back with no reason, no requester and no date requested,
+which is what the audit trail above exists to answer. A refund is now
+customer-initiated, and this table is the record of the asking:
+
+```sql
+create type refund_request_status as enum ('REQUESTED','APPROVED','DECLINED');
+
+create table refund_requests (
+  id       uuid primary key default gen_random_uuid(),
+  order_id uuid not null references orders(id) on delete cascade,
+  user_id  uuid not null references users(id) on delete cascade,
+  status   refund_request_status not null default 'REQUESTED',
+  reason   text not null check (char_length(btrim(reason)) between 10 and 500),
+  amount_paisa bigint not null check (amount_paisa >= 0),
+  staff_note  text,
+  reviewed_by uuid references users(id) on delete set null,
+  reviewed_at timestamptz,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+-- One open request per order: without it two tabs raise two requests and
+-- staff approve both, attempting the same refund twice.
+create unique index refund_requests_open_idx on refund_requests (order_id)
+  where status = 'REQUESTED';
+```
+
+The flow, and where each rule is enforced:
+
+| Step | Who | Enforced by |
+| --- | --- | --- |
+| Raise a request on a DELIVERED order, inside the 14 day window | customer | `refund_requests_own_insert` (RLS), mirrored in `refundEligibility()` for the UI |
+| Approve or decline | staff | `refund_requests_staff_review` (RLS); `stamp_refund_review` sets `reviewed_by`/`reviewed_at` from `auth.uid()` rather than the payload |
+| Order moves to REFUNDED | the database | `refund_order_on_approval`, SECURITY DEFINER, because the customer has no update rights on `orders` and the two writes must not drift apart |
+| DELIVERED → REFUNDED without a request | nobody | `enforce_order_status_transition` refuses it |
+
+`amount_paisa` is a snapshot for the same reason `order_items` snapshot their
+price: what was asked back must not drift after the request is raised. Stock
+release and the commission clawback need no extra work, they already hang off
+the order reaching REFUNDED.
+
+CANCELLED → REFUNDED is deliberately left free of the request requirement:
+cancelling a prepaid order means returning money nobody had to ask for.
 
 ---
 

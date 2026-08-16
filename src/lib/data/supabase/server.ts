@@ -74,7 +74,7 @@ export async function createAdminSupabase() {
   if (!serviceKey) {
     throw new Error(
       "SUPABASE_SERVICE_ROLE_KEY is not set. It is server-only and must never " +
-        "carry a NEXT_PUBLIC_ prefix — see BACKEND_SETUP.md §4."
+        "carry a NEXT_PUBLIC_ prefix. See BACKEND_SETUP.md §4."
     );
   }
   assertConfigured();

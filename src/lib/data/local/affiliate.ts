@@ -93,6 +93,9 @@ export const localAffiliate: AffiliateStore = {
       product: sale.product,
       salePrice: sale.salePrice,
       date: sale.date,
+      // Fixtures have no hold clock behind them, so they show as credited
+      // rather than inventing a return window this backend cannot run.
+      status: "CREDITED" as const,
       // Derived at render on this backend — there is no commission record to
       // read back, so the current rate is the only figure available.
       commission: calculateCommission(

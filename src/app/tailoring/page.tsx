@@ -134,6 +134,30 @@ export default function TailoringPage() {
         </div>
       </section>
 
+      {/* The atelier workflow behind bespoke stitching is not built yet: the
+          screens below are the finished design, so the page says so up front
+          rather than taking an order it cannot fulfil. */}
+      <section className="bg-primary text-white">
+        <div className="px-gutter max-w-container-max mx-auto py-16 flex flex-col md:flex-row items-start gap-8">
+          <span className="material-symbols-outlined text-5xl text-tertiary-fixed-dim shrink-0">
+            schedule
+          </span>
+          <div>
+            <p className="font-label-md text-label-md uppercase tracking-[0.3em] text-tertiary-fixed-dim mb-4">
+              Coming soon
+            </p>
+            <h3 className="font-headline-md text-headline-md mb-6">
+              Bespoke tailoring is not open for orders yet.
+            </h3>
+            <p className="font-body-lg text-body-lg opacity-90 max-w-2xl">
+              Everything below is the atelier experience we are building: the process, the signature
+              styles, and the pricing we will charge. Stitching goes live once our master tailors
+              are onboarded, so no stitching charge is added to any order today.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Process */}
       <section className="py-margin-desktop bg-surface">
         <div className="px-gutter max-w-container-max mx-auto">

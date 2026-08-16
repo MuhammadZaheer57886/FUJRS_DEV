@@ -98,7 +98,7 @@ export default function AboutPage() {
               The Heritage
             </h3>
             <span className="font-body text-label-md uppercase tracking-widest text-on-surface-variant">
-              01 — Origins
+              01 · Origins
             </span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-12 gap-gutter">
@@ -126,7 +126,7 @@ export default function AboutPage() {
                   &ldquo;To understand our future, we must look at the threads of our past.&rdquo;
                 </p>
                 <p className="font-body text-label-sm mt-4 uppercase">
-                  — Khadija S., Creative Director
+                  Khadija S., Creative Director
                 </p>
               </div>
             </Reveal>

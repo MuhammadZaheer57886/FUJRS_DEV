@@ -24,7 +24,7 @@ export function AtelierPromo() {
               />
             </div>
             <div className="absolute -top-10 -right-10 w-64 h-64 border border-tertiary-fixed-dim -z-0" />
-            <div className="absolute -bottom-6 -left-6 bg-tertiary-fixed-dim px-6 py-4 z-20">
+            <div className="absolute -bottom-6 -left-6 bg-surface-container-lowest px-6 py-4 z-20">
               <p className="font-label-md text-label-md text-primary uppercase">
                 Elite Craftsmanship
               </p>

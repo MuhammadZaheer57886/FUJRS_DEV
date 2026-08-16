@@ -7,9 +7,10 @@ import {
   MAX_EDGE_PX,
   downscaleMany,
   type ImageShape,
-  type UploadedImage,
 } from "@/lib/downscaleImage";
+import { photoSrc, type ProductFormPhoto } from "@/lib/data";
 import { Loading } from "@/components/ui/Loading";
+import { cropStyle } from "@/lib/productPhoto";
 
 /** More than this and the product gallery stops being useful. */
 export const MAX_PRODUCT_IMAGES = 6;
@@ -28,8 +29,8 @@ export function ImageGalleryUpload({
   max = MAX_PRODUCT_IMAGES,
   shape = "portrait",
 }: {
-  images: UploadedImage[];
-  onChange: (next: UploadedImage[]) => void;
+  images: ProductFormPhoto[];
+  onChange: (next: ProductFormPhoto[]) => void;
   max?: number;
   shape?: ImageShape;
 }) {
@@ -57,7 +58,9 @@ export function ImageGalleryUpload({
     setBusy(true);
     try {
       const { images: added, failed } = await downscaleMany(accepted, MAX_EDGE_PX[shape]);
-      if (added.length > 0) onChange([...images, ...added]);
+      if (added.length > 0) {
+        onChange([...images, ...added.map((image) => ({ kind: "upload" as const, ...image }))]);
+      }
 
       const problems: string[] = [];
       if (failed.length > 0) {
@@ -66,7 +69,7 @@ export function ImageGalleryUpload({
         );
       }
       if (overflow > 0) {
-        problems.push(`${overflow} more skipped — the limit is ${max} images.`);
+        problems.push(`${overflow} more skipped, because the limit is ${max} images.`);
       }
       setError(problems.join(" ") || null);
     } finally {
@@ -103,7 +106,7 @@ export function ImageGalleryUpload({
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {images.map((image, index) => (
           <figure
-            key={`${index}-${image.dataUrl.slice(-24)}`}
+            key={`${index}-${photoSrc(image).slice(-24)}`}
             draggable
             onDragStart={() => setDraggingIndex(index)}
             onDragEnd={() => setDraggingIndex(null)}
@@ -120,7 +123,16 @@ export function ImageGalleryUpload({
             }`}
           >
             <div className="relative aspect-[4/5]">
-              <Image src={image.dataUrl} alt="" fill unoptimized className="object-cover" />
+              {/* Cropped as the storefront preview left it, so the tile here
+                  and the tile in the shop are the same picture. */}
+              <Image
+                src={photoSrc(image)}
+                alt=""
+                fill
+                unoptimized
+                className="object-cover"
+                style={cropStyle(image)}
+              />
             </div>
 
             {index === 0 && (
@@ -140,7 +152,7 @@ export function ImageGalleryUpload({
               </span>
             </button>
 
-            {/* Arrows as well as dragging — dragging is not reachable by
+            {/* Arrows as well as dragging, because dragging is not reachable by
                 keyboard, and this is the only way to set the main image. */}
             <div className="absolute inset-x-0 bottom-0 flex justify-between bg-surface/90 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
               <button
@@ -199,7 +211,7 @@ export function ImageGalleryUpload({
                   {images.length === 0 ? "Add images" : "Add more"}
                 </span>
                 <span className="font-body text-label-sm text-text-muted">
-                  Drop files or click — {remaining} left
+                  Drop files or click · {remaining} left
                 </span>
               </>
             )}
@@ -223,9 +235,9 @@ export function ImageGalleryUpload({
         </p>
       ) : (
         <p className="mt-3 font-body text-label-sm text-text-muted">
-          Select several at once. The first image is the main one shown in listings — drag a tile or
+          Select several at once. The first image is the main one shown in listings. Drag a tile or
           use the arrows to reorder. Portrait 4:5 works best; PNG, JPEG or WebP, resized
-          automatically.
+          automatically. Crop them with “Preview on the shop” below.
         </p>
       )}
     </div>

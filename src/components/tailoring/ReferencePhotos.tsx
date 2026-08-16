@@ -107,9 +107,16 @@ export function ReferencePhotos() {
 
           {remaining > 0 && (
             <div className="mt-6">
+              {/* The gallery speaks the product form's photo union, where a
+                  photo can already be on the record. Nothing here is: these
+                  are always fresh uploads, so the stored case is dropped. */}
               <ImageGalleryUpload
                 images={[]}
-                onChange={(picked) => void handleAdd(picked)}
+                onChange={(picked) =>
+                  void handleAdd(
+                    picked.flatMap((photo) => (photo.kind === "upload" ? [photo] : []))
+                  )
+                }
                 max={remaining}
               />
             </div>

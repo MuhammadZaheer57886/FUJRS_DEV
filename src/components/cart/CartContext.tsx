@@ -108,7 +108,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           id: product.id,
           slug: product.slug,
           title: product.title,
-          image: product.images[0],
+          // A snapshot of the URL: the bag thumbnail must keep showing what was
+          // added even if the product's photography is replaced later.
+          image: product.images[0]?.url ?? "",
           price: product.price,
           qty,
           stitching,

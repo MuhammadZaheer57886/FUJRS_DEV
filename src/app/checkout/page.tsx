@@ -100,7 +100,7 @@ export default function CheckoutPage() {
       return;
     }
     setPromoMessage(null);
-    toast("Promo codes aren't available yet — coming with the live backend.", "soon");
+    toast("Promo codes aren't available yet. They arrive with the live backend.", "soon");
   }
 
   function goToReview(e: React.FormEvent) {
@@ -111,7 +111,7 @@ export default function CheckoutPage() {
 
   async function placeOrder() {
     if (paymentMethod === "card") {
-      toast("Card payments aren't available yet — choose Cash on Delivery.", "soon");
+      toast("Card payments aren't available yet. Please choose Cash on Delivery.", "soon");
       return;
     }
 
@@ -189,7 +189,7 @@ export default function CheckoutPage() {
                   <h2 className="font-headline-sm text-headline-sm">Contact Information</h2>
                   {!session && (
                     <p className="font-label-sm text-label-sm text-on-surface-variant">
-                      Checking out as guest —{" "}
+                      Checking out as guest,{" "}
                       <Link href="/login?callbackUrl=/checkout" className="text-primary underline">
                         sign in
                       </Link>{" "}
@@ -299,7 +299,7 @@ export default function CheckoutPage() {
                       onChange={() => {
                         setPaymentMethod("card");
                         toast(
-                          "Card payments aren't available yet — coming with the live backend.",
+                          "Card payments aren't available yet. They arrive with the live backend.",
                           "soon"
                         );
                       }}

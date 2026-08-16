@@ -8,6 +8,8 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { LinkButton } from "@/components/ui/Button";
 import { StatusScreen } from "@/components/ui/StatusScreen";
 import { STITCHING_STATUSES } from "@/lib/stitchingStatus";
+import { ORDER_STATUS_LABELS } from "@/lib/orderStatus";
+import { RefundRequest } from "@/components/account/RefundRequest";
 import { formatOrderNumber } from "@/lib/orderNumber";
 import { orders as orderStore } from "@/lib/data";
 import type { Order } from "@/lib/data";
@@ -49,7 +51,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       <StatusScreen
         icon="receipt_long"
         title="Order not found"
-        body="Orders are stored on this device — this one may have been placed elsewhere."
+        body="Orders are stored on this device, so this one may have been placed elsewhere."
         actions={
           <LinkButton href="/account" variant="primary" className="!px-10 !py-4">
             Back to Account
@@ -83,9 +85,23 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </h1>
         </div>
         <span className="border border-primary px-4 py-2 font-label-sm uppercase tracking-widest">
-          {order.status}
+          {ORDER_STATUS_LABELS[order.status]}
         </span>
       </div>
+
+      {order.status === "DELIVERED" && (
+        <p className="mt-4 font-body text-body-md text-on-surface-variant">
+          Completed
+          {order.deliveredAt
+            ? `, delivered ${new Date(order.deliveredAt).toLocaleDateString("en-US", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}`
+            : ""}
+          .
+        </p>
+      )}
 
       <div className="mt-12 grid grid-cols-1 gap-gutter md:grid-cols-12">
         <div className="md:col-span-7 space-y-6">
@@ -113,7 +129,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 {item.stitchingLabel && (
                   <div className="mt-4 border-t border-outline-variant/30 pt-4">
                     <p className="mb-3 font-label-sm text-label-sm uppercase text-on-surface-variant">
-                      Bespoke Stitching — {item.stitchingLabel}
+                      Bespoke Stitching: {item.stitchingLabel}
                     </p>
                     <ol className="flex flex-wrap gap-2">
                       {STITCHING_STATUSES.map((stage, i) => {
@@ -196,6 +212,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             )}
           </div>
+
+          <RefundRequest order={order} />
         </div>
       </div>
     </div>

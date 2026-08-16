@@ -35,7 +35,7 @@ function SpecSheet({ item }: { item: StitchingJob }) {
               <dd
                 className={`font-display text-body-lg ${value ? "text-on-surface" : "text-error"}`}
               >
-                {value ? `${value}${MEASUREMENT_UNIT}` : "—"}
+                {value ? `${value}${MEASUREMENT_UNIT}` : "-"}
               </dd>
             </div>
           );
@@ -72,7 +72,7 @@ function SpecSheet({ item }: { item: StitchingJob }) {
         <ul className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {item.references.map((reference) => (
             <li key={reference.id}>
-              {/* Signed and short-lived — the bucket is private because these
+              {/* Signed and short-lived; the bucket is private because these
                   are the customer's own photos. Opens full size in a new tab
                   for the detail a thumbnail loses. */}
               <a
@@ -127,7 +127,7 @@ export function TailorView() {
           <div key={status} className="border border-border-subtle p-6">
             <p className="text-label-sm uppercase text-text-muted">{status}</p>
             <p className="mt-2 font-display text-headline-sm">
-              {queue ? queue.filter((q) => q.status === status).length : "—"}
+              {queue ? queue.filter((q) => q.status === status).length : "-"}
             </p>
           </div>
         ))}
@@ -142,8 +142,8 @@ export function TailorView() {
       )}
       {queue?.length === 0 && (
         <p className="mt-4 text-text-muted">
-          Nothing in the queue — bespoke pieces appear here as customers order them, and any piece
-          nobody has claimed is yours to pick up.
+          Nothing in the queue yet. Bespoke pieces appear here as customers order them, and any
+          piece nobody has claimed is yours to pick up.
         </p>
       )}
 
@@ -157,7 +157,7 @@ export function TailorView() {
               <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-body-md text-on-surface">
-                    {formatOrderNumber(item.orderNumber)} — {item.customer}
+                    {formatOrderNumber(item.orderNumber)} · {item.customer}
                     {!item.claimed && (
                       <span className="ml-2 border border-marketplace-bronze px-2 py-0.5 text-label-sm uppercase tracking-widest text-marketplace-bronze">
                         Unclaimed

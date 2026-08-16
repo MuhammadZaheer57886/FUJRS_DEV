@@ -5,7 +5,7 @@ import { Reveal } from "@/components/ui/Reveal";
 import { AddToBagButton } from "@/components/product/AddToBagButton";
 import type { CatalogItem } from "@/lib/data";
 import { ProductImage } from "@/components/ui/ProductImage";
-import { Swatch } from "@/components/ui/OptionPickers";
+import { ColorLine } from "@/components/product/ColorLine";
 
 export function WomenProductTile({
   product,
@@ -30,7 +30,8 @@ export function WomenProductTile({
         className={`relative ${aspect} overflow-hidden mb-6 block`}
       >
         <ProductImage
-          src={product.images[0]}
+          src={product.images[0]?.url}
+          focal={product.images[0]}
           alt={product.title}
           fill
           sizes={span === "large" ? "66vw" : "33vw"}
@@ -53,8 +54,7 @@ export function WomenProductTile({
         <div>
           <h3 className="font-headline-sm text-headline-sm text-primary mb-1">{product.title}</h3>
           <p className="flex items-center gap-1.5 font-label-sm text-label-sm uppercase text-secondary tracking-widest">
-            <Swatch hex={product.colorHex} size={12} />
-            {product.color}
+            <ColorLine colors={product.colors} />
           </p>
         </div>
         <p className="font-body-lg text-body-lg text-primary shrink-0 ml-4">

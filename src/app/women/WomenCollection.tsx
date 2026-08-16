@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { CatalogItem } from "@/lib/data";
 import { EmptyCatalogue } from "@/components/ui/EmptyCatalogue";
 import { Reveal } from "@/components/ui/Reveal";
@@ -60,18 +61,25 @@ export function WomenCollection({ products }: { products: CatalogItem[] }) {
 
   return (
     <div>
-      {/* Hero */}
-      <section className="relative w-full h-[600px] md:h-[700px] bg-surface-container overflow-hidden group">
-        <div
-          className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 group-hover:scale-105"
-          style={{
-            backgroundImage:
-              "url('https://lh3.googleusercontent.com/aida-public/AB6AXuC0nb8IOFJZgkYNvZjWPpi3FcdJ1DPyWF8zOV29SkXesR9xUM7xxQ4hT1Xslrt7z-o0hUHJH7zT4Fuo8QO35-Iy3Bc13aV7qeo6XbHOlK7QPOqDOH_O1mnEpGLinRyXovrrmQD-4kMkSXJNWiYSbOewf9BDgIYjOqCuwhQxkhPd_foPZRmF-U5GPjh7sUZn4k7XASmexi-OBCXj_S0SVMRQO5BYcoqKJ_Gj8hRelwXRgLTBYcpoj9RuCHQQNpK-F7OwIFTygV1lAfo')",
-          }}
-          role="img"
-          aria-label="A woman wearing an intricate pastel green unstitched embroidered lawn suit in a minimalist white marble atrium."
+      {/* Hero: from `md` up the section takes the photograph's own 16:9 ratio,
+          so `object-cover` has nothing to crop and the whole frame is visible,
+          the model and the colonnade included. Below `md` the ratio is dropped:
+          a 16:9 band on a phone is a ~220px sliver with the headline on top of
+          it, so the height is fixed and the sides crop instead, anchored right
+          to keep her in frame. */}
+      <section className="relative w-full h-[600px] md:h-auto md:aspect-[16/9] bg-surface-container overflow-hidden group">
+        <Image
+          src="/images/women-hero.webp"
+          alt="A woman in a pastel green embroidered lawn suit with a matching net dupatta, standing in a sunlit white marble colonnade."
+          fill
+          priority
+          sizes="100vw"
+          quality={85}
+          className="object-cover object-right md:object-center transition-transform duration-1000 group-hover:scale-105"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-surface/40 to-transparent" />
+        {/* Heavier on the left on a phone, where the copy sits over the
+            photograph rather than beside it. */}
+        <div className="absolute inset-0 bg-gradient-to-r from-surface/75 via-surface/30 to-transparent md:from-surface/50 md:via-surface/10" />
         <div className="relative h-full max-w-container-max mx-auto px-gutter flex flex-col justify-center items-start">
           <div className="max-w-xl">
             <span className="font-label-md text-label-md uppercase tracking-[0.2em] text-primary mb-4 block">

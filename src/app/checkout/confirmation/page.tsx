@@ -73,7 +73,7 @@ function OrderConfirmation() {
       <StatusScreen
         icon="receipt_long"
         title="Order not found"
-        body="Orders are stored on this device — this one may have been placed elsewhere."
+        body="Orders are stored on this device, so this one may have been placed elsewhere."
         actions={
           <LinkButton href="/account" variant="primary" className="!px-10 !py-4">
             Go to My Account

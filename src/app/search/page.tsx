@@ -7,7 +7,9 @@ async function searchProducts(query: string) {
   if (!q) return [];
   const products = await catalogRead.list();
   return products.filter((p) =>
-    [p.title, p.fabric, p.category, p.color].some((field) => field.toLowerCase().includes(q))
+    [p.title, p.fabric, p.category, ...p.colors.map((color) => color.label)].some((field) =>
+      field.toLowerCase().includes(q)
+    )
   );
 }
 
@@ -42,7 +44,7 @@ export default async function SearchPage({
             Nothing matched &ldquo;{query}&rdquo;
           </p>
           <p className="mt-3 text-body-md text-text-muted">
-            Try a broader term like a fabric or category — or browse a collection instead.
+            Try a broader term like a fabric or category, or browse a collection instead.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link href="/men" className="label-caps border border-outline-variant px-6 py-3">

@@ -1,7 +1,9 @@
 // Shrinking a picked image before it's stored.
 //
 // Shared by the single-image and gallery uploaders so the size limits and
-// encoding live in one place. Browser-only — it needs canvas.
+// encoding live in one place. Browser-only, it needs canvas.
+
+import { CENTRE_FOCAL, MIN_ZOOM, cropWindow, type PhotoCrop } from "@/lib/productPhoto";
 
 /**
  * Images are held as data URLs in localStorage until file storage takes over,
@@ -36,8 +38,13 @@ export class ImageDecodeError extends Error {
  * them to reserve space before the file loads, and `product_images.width` /
  * `.height` are NOT NULL for that reason. Guessing them is what produces a
  * grid that reflows as each photo arrives.
+ *
+ * The crop starts centred and un-zoomed and is only moved if someone moves it
+ * in the storefront preview, so an upload that needs no attention needs no
+ * clicks. `zoom` never leaves the form: `cropToDataUrl` bakes it into the
+ * pixels on save, and the focal point carries on to the database.
  */
-export interface UploadedImage {
+export interface UploadedImage extends PhotoCrop {
   dataUrl: string;
   width: number;
   height: number;
@@ -64,6 +71,9 @@ export function downscaleToDataUrl(file: File, maxEdge: number): Promise<Uploade
           dataUrl: canvas.toDataURL("image/jpeg", JPEG_QUALITY),
           width: canvas.width,
           height: canvas.height,
+          focalX: CENTRE_FOCAL,
+          focalY: CENTRE_FOCAL,
+          zoom: MIN_ZOOM,
         });
       };
       img.src = reader.result as string;
@@ -97,4 +107,62 @@ export async function downscaleMany(
   }
 
   return { images, failed };
+}
+
+/**
+ * Cuts `cropWindow` out of an image, so the file that gets stored is the crop
+ * the preview showed.
+ *
+ * Done at save time rather than on every drag of the zoom slider, which would
+ * re-encode the photo sixty times a second for a value the user is still
+ * choosing. An un-zoomed image is returned untouched: re-encoding a JPEG that
+ * nobody cropped would only lose quality.
+ *
+ * The focal point survives the crop unchanged, and it has to: the shop still
+ * renders this file into three different tile ratios. `cropWindow` is
+ * positioned so the focal point sits at the same fraction of the result as it
+ * did of the original, which is what makes that true.
+ */
+export function cropToDataUrl(image: UploadedImage): Promise<UploadedImage> {
+  if (image.zoom <= MIN_ZOOM) return Promise.resolve({ ...image, zoom: MIN_ZOOM });
+
+  return new Promise((resolve, reject) => {
+    const source = new window.Image();
+    source.onerror = () => reject(new ImageDecodeError("the cropped image"));
+    source.onload = () => {
+      const region = cropWindow(image);
+      // At least one pixel each way: a 3x zoom on a thumbnail must not round
+      // down to a zero-sized canvas, which throws.
+      const width = Math.max(1, Math.round(image.width * region.width));
+      const height = Math.max(1, Math.round(image.height * region.height));
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new ImageDecodeError("the cropped image"));
+
+      ctx.drawImage(
+        source,
+        Math.round(image.width * region.left),
+        Math.round(image.height * region.top),
+        width,
+        height,
+        0,
+        0,
+        width,
+        height
+      );
+
+      resolve({
+        ...image,
+        dataUrl: canvas.toDataURL("image/jpeg", JPEG_QUALITY),
+        width,
+        height,
+        zoom: MIN_ZOOM,
+      });
+    };
+    source.src = image.dataUrl;
+  });
 }

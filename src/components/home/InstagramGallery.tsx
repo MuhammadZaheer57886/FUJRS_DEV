@@ -32,7 +32,7 @@ export function InstagramGallery() {
     <section className="py-margin-desktop border-t border-outline-variant">
       <div className="max-w-container-max mx-auto px-gutter mb-12 flex justify-between items-end">
         <h2 className="font-headline-sm text-headline-sm">#FUJRS on Instagram</h2>
-        {/* Rendered as plain text until the account exists — see @/lib/social.
+        {/* Rendered as plain text until the account exists. See @/lib/social.
             A link with nowhere to go is worse than no link. */}
         {INSTAGRAM.url ? (
           <a

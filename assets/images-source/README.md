@@ -26,6 +26,12 @@ The components reference these by path, so the names matter:
 |---|---|---|
 | `home-hero.*` | `public/images/home-hero.webp` | `src/components/home/HeroSection.tsx` |
 | `men-hero.*` | `public/images/men-hero.webp` | `src/app/men/MenCollection.tsx` |
+| `men-hero-2.*` | `public/images/men-hero-2.webp` | `src/app/men/MenCollection.tsx` |
+
+The men's hero cross-fades between `men-hero` and `men-hero-2`, in that
+order — the list lives in `menHeroSlides` at the top of `MenCollection.tsx`.
+Adding a third frame is a matter of dropping `men-hero-3.*` here and adding
+one entry to that array.
 
 ## Deploying
 

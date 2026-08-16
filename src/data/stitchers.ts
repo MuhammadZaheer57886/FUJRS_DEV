@@ -92,7 +92,7 @@ export const stitchers: Stitcher[] = [
     id: "s5",
     slug: "khyber-artisans",
     name: "Master Zaid",
-    title: "Master Zaid — Khyber Artisans",
+    title: "Master Zaid, Khyber Artisans",
     specialty: "Heavy Bridal & Archival Silhouettes",
     rating: 4.9,
     leadTime: "14-21 Business Days",
@@ -104,7 +104,7 @@ export const stitchers: Stitcher[] = [
     experience: "28+ Years",
     location: "Old Anarkali Atelier, Lahore",
     workshopNote:
-      "Guardian of Lahore's Couture Legacy — Master Zaid leads a curated workshop of 12 master craftsmen in the heart of Anarkali, specializing in the intricate fusion of Zardozi and contemporary silhouettes.",
+      "Guardian of Lahore's Couture Legacy. Master Zaid leads a curated workshop of 12 master craftsmen in the heart of Anarkali, specializing in the intricate fusion of Zardozi and contemporary silhouettes.",
     portfolio: [
       {
         title: "The Royal Crimson Suite",

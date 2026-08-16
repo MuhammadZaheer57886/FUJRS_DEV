@@ -18,14 +18,16 @@ export function ProductCard({ product }: { product: CatalogItem }) {
       <Link href={`/products/${product.slug}`} className="block">
         <div className="relative aspect-[4/5] w-full overflow-hidden bg-surface-container">
           <ProductImage
-            src={product.images[0]}
+            src={product.images[0]?.url}
+            focal={product.images[0]}
             alt={product.title}
             fill
             sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
             className="object-cover transition-opacity duration-300 group-hover:opacity-0"
           />
           <ProductImage
-            src={product.images[1] ?? product.images[0]}
+            src={(product.images[1] ?? product.images[0])?.url}
+            focal={product.images[1] ?? product.images[0]}
             alt=""
             fill
             sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"

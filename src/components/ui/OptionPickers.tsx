@@ -64,8 +64,12 @@ function Shell({
  * to blank — which reads as "this product has no category" rather than "this
  * category is no longer offered".
  */
-function offerable<T extends TaxonomyOption>(options: T[], selectedId: string | null): T[] {
-  return options.filter((option) => !option.archived || option.id === selectedId);
+function offerable<T extends TaxonomyOption>(
+  options: T[],
+  selected: string | string[] | null
+): T[] {
+  const chosen = Array.isArray(selected) ? selected : selected ? [selected] : [];
+  return options.filter((option) => !option.archived || chosen.includes(option.id));
 }
 
 /** Single-choice picker over one managed list. */
@@ -213,6 +217,10 @@ export function Swatch({
 /**
  * The colour picker, grouped by family.
  *
+ * MULTI-select: a piece is cut in several colourways off one pattern, and the
+ * single-choice version made you publish it once per colour. Selection order is
+ * kept, and the first colour picked is the primary one a listing tile shows.
+ *
  * Grouping is the same idea as the storefront filter: a flat list of every
  * colour is what made "Deep Navy", "Midnight Blue" and "Pastel Blue" feel like
  * three unrelated choices instead of three blues. The search box is there
@@ -221,15 +229,16 @@ export function Swatch({
 export function ColorSwatchPicker({
   label,
   colors,
-  value,
+  selected,
   onChange,
   hint,
   error,
 }: {
   label: string;
   colors: ColorOption[];
-  value: string | null;
-  onChange: (id: string | null) => void;
+  /** Ordered ids. Index 0 is the primary. */
+  selected: string[];
+  onChange: (ids: string[]) => void;
   hint?: string;
   error?: string;
 }) {
@@ -237,7 +246,7 @@ export function ColorSwatchPicker({
   const searchId = useId();
 
   const groups = useMemo(() => {
-    const available = offerable(colors, value);
+    const available = offerable(colors, selected);
     const q = query.trim().toLowerCase();
     const matching = q
       ? available.filter(
@@ -251,27 +260,54 @@ export function ColorSwatchPicker({
       family,
       colors: matching.filter((color) => color.family === family),
     })).filter((group) => group.colors.length > 0);
-  }, [colors, value, query]);
+  }, [colors, selected, query]);
 
-  const selected = colors.find((color) => color.id === value) ?? null;
+  // In the order they were picked, not the order of the list: that is what
+  // makes "the first one" a decision the user made rather than an accident.
+  const chosen = useMemo(
+    () =>
+      selected
+        .map((id) => colors.find((color) => color.id === id))
+        .filter((color): color is ColorOption => Boolean(color)),
+    [colors, selected]
+  );
+
+  function toggle(id: string) {
+    onChange(selected.includes(id) ? selected.filter((v) => v !== id) : [...selected, id]);
+  }
 
   return (
     <Shell label={label} hint={hint} error={error}>
       <div className="border border-outline-variant p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="font-body text-body-md">
-            {selected ? (
-              <span className="flex items-center gap-2">
-                <Swatch hex={selected.hex} size={20} />
-                <span>
-                  {selected.label}
-                  <span className="text-text-muted"> · {COLOR_FAMILY_LABELS[selected.family]}</span>
-                </span>
-              </span>
-            ) : (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="font-body text-body-md">
+            {chosen.length === 0 ? (
               <span className="text-text-muted">No colour chosen</span>
+            ) : (
+              <ul className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                {chosen.map((color, index) => (
+                  <li key={color.id} className="flex items-center gap-2">
+                    <Swatch hex={color.hex} size={20} />
+                    <span>
+                      {color.label}
+                      <span className="text-text-muted">
+                        {" · "}
+                        {index === 0 ? "Primary" : COLOR_FAMILY_LABELS[color.family]}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => toggle(color.id)}
+                      aria-label={`Remove ${color.label}`}
+                      className="material-symbols-outlined text-[18px] leading-none text-text-muted transition-colors hover:text-error"
+                    >
+                      close
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
-          </p>
+          </div>
           <label htmlFor={searchId} className="sr-only">
             Search colours
           </label>
@@ -298,7 +334,8 @@ export function ColorSwatchPicker({
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {group.colors.map((color) => {
-                    const active = color.id === value;
+                    const position = selected.indexOf(color.id);
+                    const active = position !== -1;
                     return (
                       <button
                         key={color.id}
@@ -308,7 +345,7 @@ export function ColorSwatchPicker({
                         aria-label={`${color.label}, ${COLOR_FAMILY_LABELS[color.family]}`}
                         aria-pressed={active}
                         title={color.label}
-                        onClick={() => onChange(active ? null : color.id)}
+                        onClick={() => toggle(color.id)}
                         className={`flex items-center gap-2 border py-1.5 pl-1.5 pr-3 transition-colors ${
                           active
                             ? "border-primary"
@@ -318,8 +355,9 @@ export function ColorSwatchPicker({
                         <Swatch hex={color.hex} selected={active} size={28} />
                         <span className="font-body text-body-md">
                           {color.label}
-                          {color.archived && (
-                            <span className="text-text-muted"> (retired)</span>
+                          {color.archived && <span className="text-text-muted"> (retired)</span>}
+                          {position === 0 && chosen.length > 1 && (
+                            <span className="text-text-muted"> · primary</span>
                           )}
                         </span>
                       </button>

@@ -68,6 +68,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('emerald-silk-unstitched-set')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('emerald-silk-unstitched-set')::uuid, id, 0 from colors where slug = 'emerald'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('emerald-silk-unstitched-set')::uuid;
 delete from product_images where product_id = md5('emerald-silk-unstitched-set')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)
@@ -126,6 +130,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('midnight-zardozi-velvet')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('midnight-zardozi-velvet')::uuid, id, 0 from colors where slug = 'midnight-blue'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('midnight-zardozi-velvet')::uuid;
 delete from product_images where product_id = md5('midnight-zardozi-velvet')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)
@@ -184,6 +192,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('blush-pearl-organza')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('blush-pearl-organza')::uuid, id, 0 from colors where slug = 'blush'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('blush-pearl-organza')::uuid;
 delete from product_images where product_id = md5('blush-pearl-organza')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)
@@ -242,6 +254,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('ivory-karandi-suiting')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('ivory-karandi-suiting')::uuid, id, 0 from colors where slug = 'ivory'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('ivory-karandi-suiting')::uuid;
 delete from product_images where product_id = md5('ivory-karandi-suiting')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)
@@ -258,7 +274,7 @@ insert into products (
   dupatta_length, dupatta_fabric_id, dupatta_finish,
   rating, review_count
 ) values (
-  md5('supreme-egyptian-giza-87')::uuid, 'supreme-egyptian-giza-87', 'Supreme Egyptian Giza 87', 'Premium Egyptian Giza 87 cotton with a subtle, elegant sheen and a fine weave — our signature white, 4.5 meters.',
+  md5('supreme-egyptian-giza-87')::uuid, 'supreme-egyptian-giza-87', 'Supreme Egyptian Giza 87', 'Premium Egyptian Giza 87 cotton with a subtle, elegant sheen and a fine weave. Our signature white, 4.5 meters.',
   1450000, NULL,
   (select id from product_categories where slug = 'kurta-fabric'),
   (select id from fabrics where slug = 'egyptian-cotton'),
@@ -300,6 +316,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('supreme-egyptian-giza-87')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('supreme-egyptian-giza-87')::uuid, id, 0 from colors where slug = 'signature-white'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('supreme-egyptian-giza-87')::uuid;
 delete from product_images where product_id = md5('supreme-egyptian-giza-87')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)
@@ -358,6 +378,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('indigo-latha-reserve')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('indigo-latha-reserve')::uuid, id, 0 from colors where slug = 'deep-navy'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('indigo-latha-reserve')::uuid;
 delete from product_images where product_id = md5('indigo-latha-reserve')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)
@@ -416,6 +440,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('winter-karandi-deluxe')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('winter-karandi-deluxe')::uuid, id, 0 from colors where slug = 'slate-gray'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('winter-karandi-deluxe')::uuid;
 delete from product_images where product_id = md5('winter-karandi-deluxe')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)
@@ -474,6 +502,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('liquid-microfiber')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('liquid-microfiber')::uuid, id, 0 from colors where slug = 'off-white'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('liquid-microfiber')::uuid;
 delete from product_images where product_id = md5('liquid-microfiber')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)
@@ -532,6 +564,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('emerald-self-print-cotton')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('emerald-self-print-cotton')::uuid, id, 0 from colors where slug = 'forest-green'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('emerald-self-print-cotton')::uuid;
 delete from product_images where product_id = md5('emerald-self-print-cotton')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)
@@ -590,6 +626,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('aurelian-gold-unstitched-silk')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('aurelian-gold-unstitched-silk')::uuid, id, 0 from colors where slug = 'gold'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('aurelian-gold-unstitched-silk')::uuid;
 insert into product_embroidery (product_id, technique_id)
 select md5('aurelian-gold-unstitched-silk')::uuid, id from embroidery_techniques where slug = 'gold-tilla'
@@ -661,6 +701,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('noir-elegance-lawn')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('noir-elegance-lawn')::uuid, id, 0 from colors where slug = 'black'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('noir-elegance-lawn')::uuid;
 delete from product_images where product_id = md5('noir-elegance-lawn')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)
@@ -719,6 +763,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('celestial-blue-chiffon')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('celestial-blue-chiffon')::uuid, id, 0 from colors where slug = 'pastel-blue'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('celestial-blue-chiffon')::uuid;
 delete from product_images where product_id = md5('celestial-blue-chiffon')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)
@@ -777,6 +825,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('olive-tilla-embroidery')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('olive-tilla-embroidery')::uuid, id, 0 from colors where slug = 'olive-green'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('olive-tilla-embroidery')::uuid;
 delete from product_images where product_id = md5('olive-tilla-embroidery')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)
@@ -835,6 +887,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('ivory-pearl-net')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('ivory-pearl-net')::uuid, id, 0 from colors where slug = 'ivory'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('ivory-pearl-net')::uuid;
 delete from product_images where product_id = md5('ivory-pearl-net')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)
@@ -893,6 +949,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('antique-gold-zardozi-khussa')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('antique-gold-zardozi-khussa')::uuid, id, 0 from colors where slug = 'gold'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('antique-gold-zardozi-khussa')::uuid;
 delete from product_images where product_id = md5('antique-gold-zardozi-khussa')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)
@@ -955,6 +1015,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('mughal-pearl-chandbalis')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('mughal-pearl-chandbalis')::uuid, id, 0 from colors where slug = 'gold'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('mughal-pearl-chandbalis')::uuid;
 delete from product_images where product_id = md5('mughal-pearl-chandbalis')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)
@@ -1013,6 +1077,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('gilded-silk-frame-clutch')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('gilded-silk-frame-clutch')::uuid, id, 0 from colors where slug = 'gold'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('gilded-silk-frame-clutch')::uuid;
 delete from product_images where product_id = md5('gilded-silk-frame-clutch')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)
@@ -1071,6 +1139,10 @@ on conflict (id) do update set
   dupatta_finish = excluded.dupatta_finish,
   updated_at = now();
 
+delete from product_colors where product_id = md5('cream-needlework-pashmina')::uuid;
+insert into product_colors (product_id, color_id, position)
+select md5('cream-needlework-pashmina')::uuid, id, 0 from colors where slug = 'cream'
+on conflict do nothing;
 delete from product_embroidery where product_id = md5('cream-needlework-pashmina')::uuid;
 delete from product_images where product_id = md5('cream-needlework-pashmina')::uuid;
 insert into product_images (product_id, storage_path, alt, position, width, height, mime_type)

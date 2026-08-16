@@ -151,7 +151,7 @@ export default function ConfigurePage() {
               >
                 {Object.keys(GARMENT_PRICES).map((g) => (
                   <option key={g} value={g}>
-                    {g} — PKR {GARMENT_PRICES[g].toLocaleString()}
+                    {g} · PKR {GARMENT_PRICES[g].toLocaleString()}
                   </option>
                 ))}
               </select>
@@ -316,7 +316,7 @@ export default function ConfigurePage() {
               </p>
             </div>
 
-            {/* Assigned Master Tailor — adapted from source's marketplace
+            {/* Assigned Master Tailor: adapted from source's marketplace
                 "Marketplace Seller Context" panel into an internal FUJRS
                 stitcher assignment. */}
             <div className="flex items-center gap-4 p-4 border border-outline-variant bg-white">

@@ -531,6 +531,7 @@ export type Database = {
       orders: {
         Row: {
           contact_email: string
+          delivered_at: string | null
           fabric_total_paisa: number
           id: string
           order_number: string
@@ -550,6 +551,7 @@ export type Database = {
         }
         Insert: {
           contact_email: string
+          delivered_at?: string | null
           fabric_total_paisa: number
           id?: string
           order_number: string
@@ -569,6 +571,7 @@ export type Database = {
         }
         Update: {
           contact_email?: string
+          delivered_at?: string | null
           fabric_total_paisa?: number
           id?: string
           order_number?: string
@@ -700,6 +703,39 @@ export type Database = {
           },
         ]
       }
+      product_colors: {
+        Row: {
+          color_id: string
+          position: number
+          product_id: string
+        }
+        Insert: {
+          color_id: string
+          position?: number
+          product_id: string
+        }
+        Update: {
+          color_id?: string
+          position?: number
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_colors_color_id_fkey"
+            columns: ["color_id"]
+            isOneToOne: false
+            referencedRelation: "colors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_colors_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_embroidery: {
         Row: {
           product_id: string
@@ -736,6 +772,8 @@ export type Database = {
           blur_data_url: string | null
           bytes: number | null
           created_at: string
+          focal_x: number
+          focal_y: number
           height: number
           id: string
           mime_type: string
@@ -749,6 +787,8 @@ export type Database = {
           blur_data_url?: string | null
           bytes?: number | null
           created_at?: string
+          focal_x?: number
+          focal_y?: number
           height: number
           id?: string
           mime_type: string
@@ -762,6 +802,8 @@ export type Database = {
           blur_data_url?: string | null
           bytes?: number | null
           created_at?: string
+          focal_x?: number
+          focal_y?: number
           height?: number
           id?: string
           mime_type?: string
@@ -1021,6 +1063,70 @@ export type Database = {
           {
             foreignKeyName: "referral_clicks_vendor_id_fkey"
             columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      refund_requests: {
+        Row: {
+          amount_paisa: number
+          created_at: string
+          id: string
+          order_id: string
+          reason: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          staff_note: string | null
+          status: Database["public"]["Enums"]["refund_request_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_paisa: number
+          created_at?: string
+          id?: string
+          order_id: string
+          reason: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          staff_note?: string | null
+          status?: Database["public"]["Enums"]["refund_request_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_paisa?: number
+          created_at?: string
+          id?: string
+          order_id?: string
+          reason?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          staff_note?: string | null
+          status?: Database["public"]["Enums"]["refund_request_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refund_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -1378,6 +1484,18 @@ export type Database = {
       is_staff: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       reserve_order_stock: { Args: { p_order_id: string }; Returns: undefined }
+      vendor_referred_sales: {
+        Args: never
+        Returns: {
+          amount_paisa: number
+          created_at: string
+          id: string
+          item_titles: string[]
+          order_number: string
+          sale_paisa: number
+          status: Database["public"]["Enums"]["commission_status"]
+        }[]
+      }
     }
     Enums: {
       access_category:
@@ -1414,6 +1532,7 @@ export type Database = {
         | "REFUNDED"
       payout_status: "REQUESTED" | "PROCESSING" | "PAID" | "REJECTED"
       product_gender: "Women" | "Men" | "Unisex"
+      refund_request_status: "REQUESTED" | "APPROVED" | "DECLINED"
       stitching_status:
         | "AWAITING_MEASUREMENTS"
         | "IN_PROGRESS"

@@ -4,12 +4,14 @@
 
 import type { AppRole } from "@/lib/auth/roles";
 import type { ColorFamily } from "@/lib/productTaxonomy";
-import type { CommissionRate } from "@/lib/commission";
+import type { CommissionRate, CommissionStatus } from "@/lib/commission";
 import type { OrderStatus } from "@/lib/orderStatus";
+import type { RefundRequestStatus } from "@/lib/refunds";
 import type { StitchingStatus } from "@/lib/stitchingStatus";
 import type { PayoutStatus } from "@/lib/payouts";
 import type { MeasurementSet } from "@/lib/measurements";
 import type { UploadedImage } from "@/lib/downscaleImage";
+import type { FocalPoint } from "@/lib/productPhoto";
 import type { LastSeen } from "@/lib/visits";
 
 export type { UploadedImage, LastSeen };
@@ -57,6 +59,12 @@ export interface Order {
   orderNumber: string;
   createdAt: string;
   status: OrderStatus;
+  /**
+   * When the order was marked delivered, or null if it hasn't been (and on
+   * orders placed before this was recorded). The return window is counted from
+   * here, not from `createdAt` (`src/lib/refunds.ts`).
+   */
+  deliveredAt: string | null;
   items: OrderItem[];
   fabricTotal: number;
   stitchingTotal: number;
@@ -95,6 +103,33 @@ export interface NewOrderInput {
   paymentMethod: PaymentMethod;
 }
 
+// --- Refunds ----------------------------------------------------------------
+
+/**
+ * A customer asking for their money back on a delivered order.
+ *
+ * Staff never create one of these: the request is the only route to a REFUNDED
+ * order, so every refund carries a reason and a person who asked for it
+ * (`src/lib/refunds.ts`).
+ */
+export interface RefundRequest {
+  id: string;
+  orderId: string;
+  /** The short code the customer knows the order by, e.g. "2VVS7D5B". */
+  orderNumber: string;
+  /** Who asked, for the staff queue. Empty on the local backend's own view. */
+  customerName: string;
+  status: RefundRequestStatus;
+  /** In the customer's words. Shown to staff, never rendered as HTML. */
+  reason: string;
+  /** What was asked back: the order total at the time of the request. */
+  amount: number;
+  /** Why staff ruled the way they did, once they have. */
+  staffNote: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+}
+
 // --- Catalogue --------------------------------------------------------------
 
 export const PRODUCT_GENDERS = ["Women", "Men", "Unisex"] as const;
@@ -119,6 +154,21 @@ export interface ColorOption extends TaxonomyOption {
   /** Lower-case `#rrggbb`. The swatch. */
   hex: string;
   /** The axis the storefront filters on — many labels share one. */
+  family: ColorFamily;
+}
+
+/**
+ * One colourway on a product: the taxonomy row, flattened.
+ *
+ * Carries the label AND the hex AND the family for the same reason the other
+ * taxonomy fields on `CatalogItem` do: a listing renders the swatch, the
+ * product page prints the name and the filter panel groups on the family, and
+ * none of them should have to join anything to get there.
+ */
+export interface ProductColor {
+  id: string;
+  label: string;
+  hex: string;
   family: ColorFamily;
 }
 
@@ -173,12 +223,56 @@ export interface NewTaxonomyOption {
 }
 
 /**
+ * One photo on a product, plus the point of it that must stay in frame.
+ *
+ * The focal point is stored with the photo because the storefront crops the
+ * same file into several shapes: 4:5 grid tiles on Men, Women and New
+ * Arrivals, a 16:9 feature tile at the top of the Women grid and a 16:10 one
+ * at the top of the Men grid. `object-cover` centres what it crops, so a
+ * portrait shot in a wide tile lost the top and bottom of the garment. Whoever
+ * publishes the product sets the point once, in the storefront preview, and
+ * every shape crops around it.
+ */
+export interface ProductPhoto extends FocalPoint {
+  /**
+   * The `product_images` row.
+   *
+   * Carried because an edit has to say "keep this one, it moved to position 2"
+   * about a file it never downloaded. Empty string on the seeded catalogue,
+   * which has no rows of its own.
+   */
+  id: string;
+  url: string;
+}
+
+/**
+ * A photo as the product form holds it: already on the product, or just picked
+ * off the disk.
+ *
+ * One list rather than "existing" and "new" side by side, because the ordering
+ * is the product of both and position 0 is the listing tile. Two lists would
+ * make "make the photo I just added the main one" impossible to express.
+ *
+ * The two differ in what can be done to them. An upload still has its pixels
+ * in the page, so it can be re-cropped; a stored photo is a URL on another
+ * host, and re-cropping it would mean pulling it back through a canvas. Its
+ * focal point is still editable, because that is two columns and no pixels.
+ */
+export type ProductFormPhoto =
+  ({ kind: "stored" } & ProductPhoto) | ({ kind: "upload" } & UploadedImage);
+
+/** Where to point an `<img>` at, whichever kind it is. */
+export function photoSrc(photo: ProductFormPhoto): string {
+  return photo.kind === "upload" ? photo.dataUrl : photo.url;
+}
+
+/**
  * A published product, as both the dashboard and the storefront read it.
  *
  * This is the full row, not a summary: the PDP renders the specs (fabric,
  * colour, embroidery, dupatta, meters) and the listings render the badge and
  * new-arrival flag, so anything the screens show has to be captured when the
- * product is created — see `NewCatalogItem`.
+ * product is created — see `ProductInput`.
  */
 export interface CatalogItem {
   id: string;
@@ -203,13 +297,12 @@ export interface CatalogItem {
   category: string;
   categoryId: string;
   gender: ProductGender;
-  /** The marketing name — "Midnight Blue". */
-  color: string;
-  colorId: string;
-  /** The swatch, so a listing never has to look the colour up. */
-  colorHex: string;
-  /** What the storefront filter groups on. Many colours share a family. */
-  colorFamily: ColorFamily;
+  /**
+   * Every colourway the piece is offered in, ordered; the first is the primary
+   * one a listing tile shows. Never empty for a product created through the
+   * form, but a row written before migration 21 can be, so read it defensively.
+   */
+  colors: ProductColor[];
   /** `["Unstitched"]` for fabric; real sizes for made-up pieces. */
   sizes: string[];
   /** Which scale `sizes` was chosen from. Null on rows predating the scales. */
@@ -237,7 +330,7 @@ export interface CatalogItem {
   dupattaFinish: string | null;
   heritageStory: string | null;
   /** Ordered; the first is the primary shown in listings. Empty is allowed. */
-  images: string[];
+  images: ProductPhoto[];
   /**
    * Derived from reviews, never entered by hand — a product with no reviews
    * has a null rating rather than a zero, which would read as "rated badly".
@@ -250,7 +343,7 @@ export interface CatalogItem {
 }
 
 /**
- * What the product form collects.
+ * What the product form collects, for a new piece and for an edit alike.
  *
  * Spelled out rather than derived from `CatalogItem`, because the two genuinely
  * differ now: the form submits taxonomy IDS, and the item carries the resolved
@@ -258,9 +351,11 @@ export interface CatalogItem {
  * label the database has no row for — the exact thing migration 18 removes.
  *
  * Left out are the fields the store owns: `id`, `slug`, `rating`/`reviewCount`
- * (derived from reviews) and the authorship/timestamp columns.
+ * (derived from reviews) and the authorship/timestamp columns. `slug` in
+ * particular is NOT editable: it is the product's address, and quietly moving
+ * it would break every link anybody has already shared.
  */
-export interface NewCatalogItem {
+export interface ProductInput {
   title: string;
   price: number;
   compareAtPrice: number | null;
@@ -270,7 +365,8 @@ export interface NewCatalogItem {
   categoryId: string;
   fabricId: string;
   fabricWeightGsm: number | null;
-  colorId: string;
+  /** Colour ids, ordered. The first is the primary. At least one. */
+  colorIds: string[];
   badgeId: string | null;
 
   sizeScaleId: string | null;
@@ -292,11 +388,11 @@ export interface NewCatalogItem {
   heritageStory: string | null;
 
   /**
-   * Carries intrinsic dimensions, unlike the string URLs on `CatalogItem` —
-   * `product_images.width`/`.height` are NOT NULL and can only be measured
-   * here, in the browser, at upload time.
+   * Ordered; the first is the primary. An upload carries intrinsic dimensions
+   * because `product_images.width`/`.height` are NOT NULL and can only be
+   * measured here, in the browser, at upload time.
    */
-  images: UploadedImage[];
+  images: ProductFormPhoto[];
 }
 
 export interface Author {
@@ -464,6 +560,14 @@ export interface ReferredSale {
   date: string;
   /** Commission on this sale, as it was calculated at the time. */
   commission: number;
+  /**
+   * Where this sale's commission has got to.
+   *
+   * Carried because a vendor reading "you earned PKR 20" under a headline of
+   * "Earned To Date: PKR 0" has been told two different things. PENDING is the
+   * hold in `src/lib/commission.ts` running, not a payment that failed.
+   */
+  status: CommissionStatus;
 }
 
 // --- Dashboard statistics ---------------------------------------------------

@@ -13,7 +13,7 @@ import type { AuthStore } from "../ports";
 import type { Account } from "../types";
 import { localProfiles } from "./profile";
 
-const NO_BACKEND_ERROR = "Password changes need the live backend — not wired up yet.";
+const NO_BACKEND_ERROR = "Password changes need the live backend, which is not wired up yet.";
 const UNKNOWN_ACCOUNT_ERROR =
   "No account found for that email on this device. Create one, or use a demo login.";
 

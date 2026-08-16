@@ -44,7 +44,7 @@ export function ReferralBar() {
     <div className="border-b border-border-subtle bg-surface-container-low">
       <div className="max-w-container-max mx-auto flex flex-wrap items-center justify-between gap-3 px-gutter py-3">
         <p className="text-label-sm text-on-surface-variant">
-          You&apos;re shopping through a FUJRS partner —{" "}
+          You&apos;re shopping through a FUJRS partner,{" "}
           <span className="uppercase tracking-widest text-marketplace-bronze">{referral.code}</span>
           . Anything you order in the next {ATTRIBUTION_WINDOW_DAYS} days is credited to them, at
           the same price you&apos;d pay otherwise.

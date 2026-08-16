@@ -19,7 +19,7 @@ import { getBrowserClient } from "./client";
 import { ensureUserId } from "./identity";
 
 const ORDER_SELECT = `
-  id, order_number, status, placed_at,
+  id, order_number, status, placed_at, delivered_at,
   fabric_total_paisa, stitching_total_paisa, shipping_paisa, total_paisa,
   ship_first_name, ship_last_name, ship_street, ship_city, ship_postal,
   referral_code,
@@ -35,6 +35,7 @@ interface OrderRow {
   order_number: string;
   status: string;
   placed_at: string;
+  delivered_at: string | null;
   fabric_total_paisa: number;
   stitching_total_paisa: number;
   shipping_paisa: number;
@@ -74,6 +75,7 @@ function toOrder(row: OrderRow): Order {
     orderNumber: row.order_number,
     createdAt: row.placed_at,
     status: row.status as OrderStatus,
+    deliveredAt: row.delivered_at,
     items: (row.order_items ?? []).map((item) => ({
       id: item.id,
       // Joined, not snapshotted: the slug is only wanted for a link back to

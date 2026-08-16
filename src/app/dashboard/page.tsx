@@ -1,42 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { AdminView } from "@/components/dashboard/AdminView";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { VendorView } from "@/components/dashboard/VendorView";
 import { TailorView } from "@/components/dashboard/TailorView";
 import { SuperAdminView } from "@/components/dashboard/SuperAdminView";
+import { StaffGate } from "@/components/dashboard/StaffGate";
 import { ROLE_LABELS } from "@/lib/auth/roles";
-import { LoadingScreen } from "@/components/ui/Loading";
 
 type Role = "SUPER_ADMIN" | "ADMIN" | "VENDOR" | "TAILOR";
 
 export default function DashboardPage() {
-  const { session, status } = useAuth();
+  return (
+    <StaffGate callbackUrl="/dashboard">
+      <Dashboard />
+    </StaffGate>
+  );
+}
+
+/** Only mounted once the gate has confirmed a staff session. */
+function Dashboard() {
+  const { session } = useAuth();
   const [activeTab, setActiveTab] = useState<Role | null>(null);
-
-  if (status === "loading") {
-    return <LoadingScreen />;
-  }
-
-  if (status === "unauthenticated") {
-    return (
-      <div className="container-luxe flex min-h-[50vh] flex-col items-center justify-center py-24 text-center">
-        <span className="material-symbols-outlined text-4xl text-text-muted">lock</span>
-        <h1 className="mt-6 font-display text-headline-md">Staff Sign-In Required</h1>
-        <p className="mt-2 max-w-sm text-body-md text-text-muted">
-          The dashboard is for FUJRS Admin, Vendor, and Tailor accounts.
-        </p>
-        <Link
-          href="/login?callbackUrl=/dashboard"
-          className="mt-8 bg-primary text-on-primary px-10 py-4 font-body text-label-md uppercase tracking-widest hover:bg-marketplace-bronze transition-colors"
-        >
-          Sign In
-        </Link>
-      </div>
-    );
-  }
 
   const userRole = session?.user.role as Role | "CUSTOMER" | undefined;
   const availableRoles: Role[] =
@@ -48,23 +34,9 @@ export default function DashboardPage() {
           ? [userRole]
           : [];
 
-  if (availableRoles.length === 0) {
-    return (
-      <div className="container-luxe flex min-h-[50vh] flex-col items-center justify-center py-24 text-center">
-        <span className="material-symbols-outlined text-4xl text-text-muted">block</span>
-        <h1 className="mt-6 font-display text-headline-md">Staff Access Only</h1>
-        <p className="mt-2 max-w-sm text-body-md text-text-muted">
-          This dashboard is for FUJRS staff accounts. Your account is a regular customer account.
-        </p>
-        <Link
-          href="/account"
-          className="mt-8 border border-primary px-10 py-4 font-body text-label-md uppercase tracking-widest hover:bg-primary hover:text-on-primary transition-colors"
-        >
-          Back to My Account
-        </Link>
-      </div>
-    );
-  }
+  // The gate already refused a customer, so this is only reachable if a role
+  // is added to AppRole and not to the list above.
+  if (availableRoles.length === 0) return null;
 
   const role = activeTab && availableRoles.includes(activeTab) ? activeTab : availableRoles[0];
 
@@ -73,10 +45,10 @@ export default function DashboardPage() {
       <p className="label-caps text-gold">Internal Tools</p>
       <h1 className="mt-2 font-display text-headline-md">Dashboard</h1>
       <p className="mt-2 text-body-md text-text-muted">
-        Signed in as {session?.user.name} — {ROLE_LABELS[role]}.{" "}
+        Signed in as {session?.user.name}, {ROLE_LABELS[role]}.{" "}
         {process.env.NEXT_PUBLIC_DATA_BACKEND === "supabase"
-          ? "Connected to the database — everything here is live."
-          : "Running on browser storage — nothing here is shared or permanent."}
+          ? "Connected to the database, so everything here is live."
+          : "Running on browser storage, so nothing here is shared or permanent."}
       </p>
 
       {availableRoles.length > 1 && (

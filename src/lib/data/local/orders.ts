@@ -17,6 +17,9 @@ const readAll = (): Order[] =>
   readJSON<Order[]>(KEY, []).map((order) => ({
     ...order,
     orderNumber: order.orderNumber || order.id.slice(-8).toUpperCase(),
+    // Orders written before delivery was timestamped have none. Null is the
+    // honest value: `refundEligibility` reads it as "no clock to check".
+    deliveredAt: order.deliveredAt ?? null,
   }));
 
 export const localOrders: OrderStore = {
@@ -38,6 +41,7 @@ export const localOrders: OrderStore = {
       orderNumber: generateOrderNumber(),
       createdAt: new Date().toISOString(),
       status: INITIAL_ORDER_STATUS,
+      deliveredAt: null,
       items: input.items.map((item, index) => ({
         id: `${index}-${item.productSlug}`,
         productSlug: item.productSlug,
@@ -72,7 +76,14 @@ export const localOrders: OrderStore = {
     const order = orders.find((o) => o.id === id);
     if (!order || !canTransition(order.status, status)) return null;
 
-    const updated = { ...order, status };
+    // Stamped here rather than derived from the update time, because the
+    // return window is counted from delivery (`src/lib/refunds.ts`) and a
+    // later status change must not move the deadline.
+    const updated: Order = {
+      ...order,
+      status,
+      deliveredAt: status === "DELIVERED" ? new Date().toISOString() : order.deliveredAt,
+    };
     writeJSON(
       KEY,
       orders.map((o) => (o.id === id ? updated : o))

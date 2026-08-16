@@ -13,6 +13,7 @@
 import type { AppRole } from "@/lib/auth/roles";
 import type { CommissionRate } from "@/lib/commission";
 import type { OrderStatus } from "@/lib/orderStatus";
+import type { RefundRequestStatus } from "@/lib/refunds";
 import type { StitchingStatus } from "@/lib/stitchingStatus";
 import type { StoredUser } from "@/lib/auth/session";
 import type { UploadedImage } from "@/lib/downscaleImage";
@@ -29,13 +30,14 @@ import type {
   CatalogItem,
   ContactMessage,
   DashboardStats,
-  NewCatalogItem,
+  ProductInput,
   NewOrderInput,
   NewTaxonomyOption,
   Order,
   PayoutRequest,
   ProductTaxonomy,
   TaxonomyKind,
+  RefundRequest,
   ReferredSale,
   SavedAddress,
   ReferenceImage,
@@ -96,6 +98,35 @@ export interface OrderStore {
 }
 
 /**
+ * Customer-initiated refunds (`src/lib/refunds.ts`).
+ *
+ * There is no staff `create` on purpose. A refund starts with the customer
+ * asking, and approving that request is what moves the order to REFUNDED, so
+ * staff cannot refund an order that nobody asked to have refunded.
+ */
+export interface RefundStore {
+  /**
+   * Newest first. Who sees what is the backend's job, the same way orders
+   * work: a customer gets their own requests, staff get every one.
+   */
+  list(): Promise<RefundRequest[]>;
+  /** The latest request against one order, or null when there is none. */
+  forOrder(orderId: string): Promise<RefundRequest | null>;
+  /** Throws `StoreWriteError` when the order isn't eligible. */
+  request(input: { orderId: string; reason: string }): Promise<RefundRequest>;
+  /**
+   * Staff ruling on a request. Approving also moves the order to REFUNDED,
+   * which releases stock and reverses commission. Null when the request is
+   * gone, already reviewed, or the caller isn't staff.
+   */
+  review(input: {
+    id: string;
+    decision: Exclude<RefundRequestStatus, "REQUESTED">;
+    note?: string;
+  }): Promise<RefundRequest | null>;
+}
+
+/**
  * The signed-in user's own profile.
  *
  * The methods below take no identity argument on purpose. Who "me" is comes
@@ -130,7 +161,17 @@ export interface CatalogReadStore {
 }
 
 export interface CatalogStore extends CatalogReadStore {
-  create(input: NewCatalogItem, author: Author): Promise<CatalogItem>;
+  create(input: ProductInput, author: Author): Promise<CatalogItem>;
+  /**
+   * Replaces everything the form owns on an existing piece.
+   *
+   * A whole-input replace rather than a patch of changed fields: the form
+   * submits its complete state, and a partial update would need every caller
+   * to work out what moved, which is exactly how a cleared field ends up
+   * silently keeping its old value. The slug, the author and the timestamps
+   * are the store's, and survive untouched.
+   */
+  update(id: string, input: ProductInput): Promise<CatalogItem>;
   remove(id: string): Promise<void>;
 }
 

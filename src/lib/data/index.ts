@@ -20,6 +20,7 @@ import { localPayouts } from "./local/payouts";
 import { localPermissions } from "./local/permissions";
 import { localProfiles } from "./local/profile";
 import { localReferrals } from "./local/referral";
+import { localRefunds } from "./local/refunds";
 import { localReviews } from "./local/reviews";
 import { localStats } from "./local/stats";
 import { localStitching } from "./local/stitching";
@@ -38,6 +39,7 @@ import { supabasePayouts } from "./supabase/payouts";
 import { supabasePermissions } from "./supabase/permissions";
 import { supabaseProfiles } from "./supabase/profile";
 import { supabaseReferrals } from "./supabase/referral";
+import { supabaseRefunds } from "./supabase/refunds";
 import { supabaseReviews } from "./supabase/reviews";
 import { supabaseStats } from "./supabase/stats";
 import { supabaseStitching } from "./supabase/stitching";
@@ -57,6 +59,7 @@ import type {
   ProductTaxonomyStore,
   ProfileStore,
   ReferralStore,
+  RefundStore,
   ReviewStore,
   StatsStore,
   StitchingStore,
@@ -98,6 +101,7 @@ export const users: UserAdminStore = useSupabase ? supabaseUsers : localUsers;
 export const profiles: ProfileStore = useSupabase ? supabaseProfiles : localProfiles;
 export const affiliate: AffiliateStore = useSupabase ? supabaseAffiliate : localAffiliate;
 export const referrals: ReferralStore = useSupabase ? supabaseReferrals : localReferrals;
+export const refunds: RefundStore = useSupabase ? supabaseRefunds : localRefunds;
 export const payouts: PayoutStore = useSupabase ? supabasePayouts : localPayouts;
 export const cart: CartStore = useSupabase ? supabaseCart : localCart;
 export const wishlist: WishlistStore = useSupabase ? supabaseWishlist : localWishlist;

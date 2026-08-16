@@ -38,10 +38,10 @@ export function AdminView() {
   }, []);
 
   const stats = [
-    { label: "Total Orders", value: data ? data.totalOrders.toLocaleString() : "—" },
-    { label: "Total Revenue", value: data ? `PKR ${data.totalRevenue.toLocaleString()}` : "—" },
-    { label: "Catalogue Products", value: productCount === null ? "—" : String(productCount) },
-    { label: "Active Vendors", value: vendorCount === null ? "—" : String(vendorCount) },
+    { label: "Total Orders", value: data ? data.totalOrders.toLocaleString() : "-" },
+    { label: "Total Revenue", value: data ? `PKR ${data.totalRevenue.toLocaleString()}` : "-" },
+    { label: "Catalogue Products", value: productCount === null ? "-" : String(productCount) },
+    { label: "Active Vendors", value: vendorCount === null ? "-" : String(vendorCount) },
   ];
 
   return (

@@ -36,7 +36,8 @@ export async function NewArrivalsGrid() {
               <div className="aspect-[4/5] bg-surface-container-highest overflow-hidden relative">
                 <Link href={`/products/${product.slug}`} className="block h-full w-full">
                   <ProductImage
-                    src={product.images[0]}
+                    src={product.images[0]?.url}
+                    focal={product.images[0]}
                     alt={product.title}
                     fill
                     sizes="(min-width: 1024px) 25vw, 50vw"
