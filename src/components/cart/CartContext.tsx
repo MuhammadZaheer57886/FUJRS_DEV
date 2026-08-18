@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { CatalogItem } from "@/lib/data";
 import { DEFAULT_STITCHER_SLUG } from "@/data/stitchers";
 import { orderTotals } from "@/lib/pricing";
@@ -33,6 +33,16 @@ interface CartContextValue {
   updateQty: (id: string, qty: number, stitched?: boolean) => void;
   clear: () => void;
   mounted: boolean;
+  /**
+   * The bag drawer. Adding a piece used to change nothing but a number in the
+   * navbar, which reads as "did that work?", so the bag slides open over the
+   * page instead: what was added, at what price, with the way to take it back
+   * off right there. It is state rather than a route so the shopper never
+   * loses the grid they were browsing.
+   */
+  drawerOpen: boolean;
+  openDrawer: () => void;
+  closeDrawer: () => void;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -48,6 +58,7 @@ function lineKeyBySlug(slug: string, stitched: boolean) {
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [mounted, setMounted] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   /** What the store already holds, so an unchanged bag isn't written back. */
   const persisted = useRef<string>(JSON.stringify([]));
@@ -118,8 +129,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         },
       ];
     });
+    setDrawerOpen(true);
   }
 
+  /**
+   * A bespoke project, which arrives from the tailoring journey rather than a
+   * product grid. Deliberately does NOT open the drawer: that flow sends the
+   * customer to the full bag itself, and a drawer would be a panel that opens
+   * only to be navigated out from under.
+   */
   function addCustomItem(item: {
     id: string;
     slug: string;
@@ -150,9 +168,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems([]);
   }
 
+  // Stable identities: the drawer closes itself on navigation from an effect
+  // keyed on these, and a fresh arrow every render would fire that effect on
+  // every render, shutting the panel the same tick `addItem` opened it.
+  const openDrawer = useCallback(() => setDrawerOpen(true), []);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
   return (
     <CartContext.Provider
-      value={{ items, addItem, addCustomItem, removeItem, updateQty, clear, mounted }}
+      value={{
+        items,
+        addItem,
+        addCustomItem,
+        removeItem,
+        updateQty,
+        clear,
+        mounted,
+        drawerOpen,
+        openDrawer,
+        closeDrawer,
+      }}
     >
       {children}
     </CartContext.Provider>

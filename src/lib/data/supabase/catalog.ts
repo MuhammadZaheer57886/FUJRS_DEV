@@ -197,10 +197,20 @@ async function replaceImages(
 ): Promise<string[]> {
   const problems: string[] = [];
 
-  const { data: existingRows } = await supabase
+  // Read before anything is destroyed, and REFUSE to carry on if the read
+  // failed. Treating an unreadable gallery as an empty one is how a save that
+  // touched nothing but the price ends up deleting every photo on the product:
+  // no row matches, every stored photo is dropped, and the delete below then
+  // wipes the rows that were still perfectly good.
+  const { data: existingRows, error: existingError } = await supabase
     .from("product_images")
     .select("id, storage_path, width, height, bytes, mime_type")
     .eq("product_id", productId);
+
+  if (existingError) {
+    logStoreError("product_images.select", existingError);
+    throw writeFailure(existingError, "Couldn't read the product's photos, so nothing was changed");
+  }
 
   const existing = new Map((existingRows ?? []).map((row) => [row.id, row]));
   const base = slugify(input.title) || "photo";
@@ -284,6 +294,22 @@ async function replaceImages(
     });
   }
 
+  // The gallery is about to be rewritten from scratch, so a run that produced
+  // no rows would empty it. Stop while the old rows are still there: a failed
+  // save must leave the product exactly as it was, not stripped of its
+  // photography.
+  if (rows.length === 0 && input.images.length > 0) {
+    // Anything that did upload before the run gave out is pointed at by no
+    // row, so take it back out of the bucket rather than leaving it behind.
+    if (uploadedPaths.length > 0) {
+      const { error } = await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove(uploadedPaths);
+      if (error) logStoreError("storage.remove", error);
+    }
+    throw new StoreWriteError(
+      `The photos couldn't be saved, so none of them were changed (${problems.join("; ")}).`
+    );
+  }
+
   const { error: deleteError } = await supabase
     .from("product_images")
     .delete()
@@ -309,10 +335,6 @@ async function replaceImages(
   if (orphaned.length > 0) {
     const { error } = await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove(orphaned);
     if (error) logStoreError("storage.remove", error);
-  }
-
-  if (uploadedPaths.length === 0 && problems.length > 0 && rows.length === 0) {
-    problems.push("the product now has no photos");
   }
 
   return problems;

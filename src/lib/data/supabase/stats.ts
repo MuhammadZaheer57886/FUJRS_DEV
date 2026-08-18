@@ -20,7 +20,12 @@ const RECENT_ORDERS = 5;
 const toPkr = (paisa: number) => paisa / 100;
 
 /** Revenue that has been cancelled or refunded is not revenue. */
-const EARNING_STATUSES: OrderStatus[] = ["CONFIRMED", "PROCESSING", "DELIVERED"];
+const EARNING_STATUSES: OrderStatus[] = [
+  "CONFIRMED",
+  "PROCESSING",
+  "PAYMENT_RECEIVED",
+  "DELIVERED",
+];
 
 /** Every day in the window, so a quiet day is a zero rather than a gap. */
 function emptySeries(): { date: string; revenue: number }[] {

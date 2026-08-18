@@ -26,6 +26,7 @@ type StaffMove = Exclude<OrderStatus, "REFUNDED">;
 const ACTION_LABELS: Record<StaffMove, string> = {
   CONFIRMED: "Confirm",
   PROCESSING: "Mark Processing",
+  PAYMENT_RECEIVED: "Mark Payment Received",
   DELIVERED: "Mark Delivered",
   CANCELLED: "Cancel Order",
 };
@@ -206,8 +207,9 @@ export function OrderManager() {
     <section>
       <h2 className="font-display text-headline-sm">Orders</h2>
       <p className="mt-1 max-w-prose text-label-sm text-marketplace-bronze">
-        Cancelling is only offered before delivery. Once an order is delivered it is complete, and
-        the only way back is a refund the customer has asked for.
+        An order moves confirmed, processing, payment received, delivered. Cancelling is only
+        offered before delivery. Once an order is delivered it is complete, and the only way back is
+        a refund the customer has asked for.
       </p>
 
       <div className="mt-4 overflow-x-auto border border-border-subtle">

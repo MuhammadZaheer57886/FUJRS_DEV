@@ -6,6 +6,7 @@ import { RevenueTrendChart } from "@/components/dashboard/charts/RevenueTrendCha
 import { CategoryBarChart } from "@/components/dashboard/charts/CategoryBarChart";
 import { CatalogManager } from "@/components/dashboard/CatalogManager";
 import { TaxonomyManager } from "@/components/dashboard/TaxonomyManager";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 
@@ -28,6 +29,7 @@ import {
   COMMISSION_TYPE_LABELS,
   formatCommissionRate,
   validateCommission,
+  type CommissionRate,
   type CommissionType,
 } from "@/lib/commission";
 import type { AppRole } from "@/lib/auth/roles";
@@ -93,6 +95,31 @@ export function SuperAdminView() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
+  /**
+   * Vendor rows part-way through a rate edit, keyed by vendor id.
+   *
+   * The number is held as the raw string so a half-typed field stays half
+   * typed. A row with no entry here is showing the stored rate.
+   */
+  const [rateDrafts, setRateDrafts] = useState<
+    Record<string, { type: CommissionType; value: string }>
+  >({});
+
+  /**
+   * The rate change the confirmation dialog is asking about; null when closed.
+   *
+   * Carries the vendor's name and both rates so the dialog can say what is
+   * actually changing rather than "are you sure?". Rates are money owed to
+   * someone, and the number is typed a digit at a time: 1 is on its way to 15
+   * and must not be saved on the way past.
+   */
+  const [pendingRate, setPendingRate] = useState<{
+    id: string;
+    name: string;
+    from: CommissionRate;
+    to: CommissionRate;
+  } | null>(null);
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -153,31 +180,82 @@ export function SuperAdminView() {
     toast(`${ROLE_LABELS[role]} account created for ${email.toLowerCase()}.`, "success");
   }
 
+  function savedRate(id: string): CommissionRate {
+    return (managed ?? []).find((v) => v.id === id)?.commission ?? DEFAULT_COMMISSION;
+  }
+
   /**
    * Commission is the Super Admin's alone to set — vendors only ever read it.
    * Validation runs here for the user's benefit; the API re-validates, because
    * a client check is not the boundary.
    */
-  async function updateCommission(id: string, patch: { type?: CommissionType; value?: number }) {
-    const vendor = (managed ?? []).find((v) => v.id === id);
-    if (!vendor) return;
-
-    const commission = { ...(vendor.commission ?? DEFAULT_COMMISSION), ...patch };
-    const problem = validateCommission(commission);
-    if (problem) {
-      toast(problem, "info");
-      return;
-    }
-
+  async function saveCommission(id: string, commission: CommissionRate) {
     // Optimistic: the input should respond immediately, and a rejected rate is
-    // reverted by the refresh below.
+    // reverted by the refresh below. The draft goes with it, so the row reads
+    // from the stored rate again rather than from what was typed.
     setManaged((prev) => prev?.map((u) => (u.id === id ? { ...u, commission } : u)) ?? prev);
+    setRateDrafts((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
 
     const result = await userStore.setCommission(id, commission);
     if (result.error) {
       toast(result.error, "info");
       await refreshUsers();
     }
+  }
+
+  /**
+   * Switching the basis CLEARS the number rather than carrying it over.
+   *
+   * The two fields only mean anything together: 100 as a percentage is the
+   * whole sale, 100 as a flat fee is PKR 100 on a sale of any size. Reusing
+   * the old number across a switch is how a vendor silently ends up on a rate
+   * nobody chose. Nothing is saved here either, because a basis on its own is
+   * half a rate: the write waits for the new number.
+   */
+  function changeCommissionType(id: string, type: CommissionType) {
+    setRateDrafts((prev) => {
+      const next = { ...prev };
+      if (type === savedRate(id).type) {
+        // Back to what is stored, so there is nothing left half-edited.
+        delete next[id];
+      } else {
+        next[id] = { type, value: "" };
+      }
+      return next;
+    });
+  }
+
+  /**
+   * Typing only ever moves the draft. The write happens once, from the dialog,
+   * so an empty field is someone part-way through typing rather than a rate of
+   * zero, and no vendor is briefly put on a rate that was only ever a keystroke
+   * on the way to another one.
+   */
+  function changeCommissionValue(id: string, raw: string) {
+    const type = rateDrafts[id]?.type ?? savedRate(id).type;
+    setRateDrafts((prev) => ({ ...prev, [id]: { type, value: raw } }));
+  }
+
+  function discardRateDraft(id: string) {
+    setRateDrafts((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }
+
+  async function handleConfirmRate() {
+    if (!pendingRate) return;
+    await saveCommission(pendingRate.id, pendingRate.to);
+    setPendingRate(null);
+    toast(
+      `${pendingRate.name} now earns ${formatCommissionRate(pendingRate.to)} per sale.`,
+      "success"
+    );
   }
 
   async function toggleAccess(r: AppRole, category: AccessCategory, field: "canView" | "canEdit") {
@@ -286,7 +364,9 @@ export function SuperAdminView() {
           <h2 className="font-display text-headline-sm">Vendor Commission</h2>
           <p className="mt-1 max-w-prose text-label-sm text-marketplace-bronze">
             Vendors market products through their referral link and earn on what sells. Only you set
-            the rate. Changes here update this screen only, they aren&apos;t saved anywhere yet.
+            the rate. Editing a row changes nothing until you save it and confirm, and a saved rate
+            applies to every sale placed after it; sales already recorded keep the rate they were
+            settled at.
           </p>
 
           <div className="mt-4 overflow-x-auto border border-border-subtle">
@@ -304,7 +384,21 @@ export function SuperAdminView() {
               </thead>
               <tbody className="divide-y divide-border-subtle">
                 {vendors.map((vendor) => {
-                  const rate = vendor.commission ?? DEFAULT_COMMISSION;
+                  const saved = vendor.commission ?? DEFAULT_COMMISSION;
+                  const draft = rateDrafts[vendor.id];
+                  const type = draft?.type ?? saved.type;
+                  const value = draft ? draft.value : String(saved.value);
+                  const typed = Number(value);
+                  // What the row would pay at what is currently in the fields,
+                  // which is the stored rate unless an edit is in flight.
+                  const entered: CommissionRate | null =
+                    value.trim() === "" || !Number.isFinite(typed) ? null : { type, value: typed };
+                  const problem = entered ? validateCommission(entered) : null;
+                  // Only a real difference is offered for saving. Retyping the
+                  // rate a vendor is already on is not a change to confirm.
+                  const changed =
+                    entered !== null &&
+                    (entered.type !== saved.type || entered.value !== saved.value);
                   return (
                     <tr key={vendor.id} className="align-middle">
                       <td className="px-4 py-3">
@@ -316,9 +410,9 @@ export function SuperAdminView() {
                       </td>
                       <td className="px-4 py-3">
                         <select
-                          value={rate.type}
+                          value={type}
                           onChange={(e) =>
-                            updateCommission(vendor.id, { type: e.target.value as CommissionType })
+                            changeCommissionType(vendor.id, e.target.value as CommissionType)
                           }
                           aria-label={`Commission type for ${vendor.name}`}
                           className="border border-outline-variant bg-white px-3 py-2 font-body text-body-md focus:border-marketplace-bronze focus:outline-none"
@@ -335,21 +429,62 @@ export function SuperAdminView() {
                           <input
                             type="number"
                             min={0}
-                            step={rate.type === "PERCENT" ? 0.5 : 100}
-                            value={rate.value}
-                            onChange={(e) =>
-                              updateCommission(vendor.id, { value: Number(e.target.value) })
-                            }
+                            step={type === "PERCENT" ? 0.5 : 100}
+                            value={value}
+                            onChange={(e) => changeCommissionValue(vendor.id, e.target.value)}
                             aria-label={`Commission rate for ${vendor.name}`}
                             className="w-24 border border-outline-variant bg-transparent px-3 py-2 font-body text-body-md focus:border-marketplace-bronze focus:outline-none"
                           />
                           <span className="text-label-sm text-text-muted">
-                            {rate.type === "PERCENT" ? "%" : "PKR"}
+                            {type === "PERCENT" ? "%" : "PKR"}
                           </span>
                         </div>
-                        <p className="mt-1 text-label-sm text-marketplace-bronze">
-                          {formatCommissionRate(rate)} per sale
-                        </p>
+                        {problem ? (
+                          <p className="mt-1 text-label-sm text-error">{problem}</p>
+                        ) : !entered ? (
+                          <p className="mt-1 text-label-sm text-text-muted">
+                            Enter a {type === "PERCENT" ? "percentage" : "flat amount"}. Still on{" "}
+                            {formatCommissionRate(saved)} until you do.
+                          </p>
+                        ) : changed ? (
+                          <p className="mt-1 text-label-sm text-text-muted">
+                            Was {formatCommissionRate(saved)}. Not saved yet.
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-label-sm text-marketplace-bronze">
+                            {formatCommissionRate(entered)} per sale
+                          </p>
+                        )}
+
+                        {/* Shown only when there is something to save, so the
+                            row is a plain readout until it is being edited. */}
+                        {draft && (
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={!changed || problem !== null}
+                              onClick={() =>
+                                entered &&
+                                setPendingRate({
+                                  id: vendor.id,
+                                  name: vendor.name,
+                                  from: saved,
+                                  to: entered,
+                                })
+                              }
+                              className="border border-outline-variant px-3 py-1.5 font-label-sm text-label-sm uppercase tracking-widest transition-colors hover:border-marketplace-bronze hover:text-marketplace-bronze disabled:opacity-40 disabled:pointer-events-none"
+                            >
+                              Save Rate
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => discardRateDraft(vendor.id)}
+                              className="font-label-sm text-label-sm uppercase tracking-widest text-text-muted underline underline-offset-4 transition-colors hover:text-on-surface"
+                            >
+                              Discard
+                            </button>
+                          </div>
+                        )}
                       </td>
                       {/* Clicks, sales and earnings are each vendor's OWN rows:
                           RLS scopes `commissions` and `referral_clicks` to the
@@ -367,9 +502,9 @@ export function SuperAdminView() {
           </div>
 
           <p className="mt-2 max-w-prose text-label-sm text-text-muted">
-            Clicks, sales and earnings are sample figures. Crediting a real sale to a vendor needs
-            the backend to read the <code className="font-mono">ref</code> code off the incoming
-            link.
+            Clicks, sales and earnings are each vendor&apos;s own records and are readable only by
+            them, so they show as - here until there is a server route that can read them across
+            vendors. Every vendor sees their own figures on their dashboard.
           </p>
         </div>
       )}
@@ -378,7 +513,8 @@ export function SuperAdminView() {
         <div className="mt-8">
           <h2 className="font-display text-headline-sm">Create User</h2>
           <p className="mt-1 text-label-sm text-marketplace-bronze">
-            Adds a user to this screen only, not saved anywhere yet.
+            Creates a real account with a working sign-in. The role is set here, never chosen by the
+            person signing in.
           </p>
           <form
             onSubmit={(e) => void handleCreateUser(e)}
@@ -558,6 +694,23 @@ export function SuperAdminView() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingRate !== null}
+        title="Update this vendor's rate?"
+        message={
+          <>
+            {pendingRate?.name} will earn {pendingRate && formatCommissionRate(pendingRate.to)} on
+            every referred sale from now on, instead of{" "}
+            {pendingRate && formatCommissionRate(pendingRate.from)}. Sales already recorded keep the
+            rate they were settled at, so nothing they have earned changes.
+          </>
+        }
+        confirmLabel="Update Rate"
+        pendingLabel="Updating rate"
+        onConfirm={handleConfirmRate}
+        onCancel={() => setPendingRate(null)}
+      />
     </div>
   );
 }

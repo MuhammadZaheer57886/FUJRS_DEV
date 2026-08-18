@@ -561,6 +561,15 @@ export interface ReferredSale {
   /** Commission on this sale, as it was calculated at the time. */
   commission: number;
   /**
+   * The rate that produced that figure, as it stood when the sale happened.
+   *
+   * Snapshotted rather than read live, for the same reason the amount is: a
+   * Super Admin changing a vendor's rate must not relabel what they already
+   * earned. It is on the row so "PKR 1,200" can be checked against "10% of
+   * PKR 12,000" instead of being a number the vendor has to take on trust.
+   */
+  rate: CommissionRate;
+  /**
    * Where this sale's commission has got to.
    *
    * Carried because a vendor reading "you earned PKR 20" under a headline of

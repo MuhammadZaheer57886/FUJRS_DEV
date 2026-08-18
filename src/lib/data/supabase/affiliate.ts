@@ -173,6 +173,10 @@ export const supabaseAffiliate: AffiliateStore = {
         // Read back, never recalculated: the rate was copied onto the row when
         // the sale happened, and a later rate change must not rewrite history.
         commission: toPkr(row.amount_paisa),
+        rate: {
+          type: row.rate_type as CommissionRate["type"],
+          value: Number(row.rate_value),
+        },
         status: row.status as CommissionStatus,
         date: row.created_at.slice(0, 10),
       };

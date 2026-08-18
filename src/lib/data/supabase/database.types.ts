@@ -1492,6 +1492,8 @@ export type Database = {
           id: string
           item_titles: string[]
           order_number: string
+          rate_type: Database["public"]["Enums"]["commission_type"]
+          rate_value: number
           sale_paisa: number
           status: Database["public"]["Enums"]["commission_status"]
         }[]
@@ -1527,6 +1529,7 @@ export type Database = {
       order_status:
         | "CONFIRMED"
         | "PROCESSING"
+        | "PAYMENT_RECEIVED"
         | "DELIVERED"
         | "CANCELLED"
         | "REFUNDED"
@@ -1700,6 +1703,7 @@ export const Constants = {
       order_status: [
         "CONFIRMED",
         "PROCESSING",
+        "PAYMENT_RECEIVED",
         "DELIVERED",
         "CANCELLED",
         "REFUNDED",

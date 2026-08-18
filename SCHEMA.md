@@ -297,7 +297,7 @@ From `src/lib/local/orders.ts` and `src/lib/orderStatus.ts`.
 
 ```sql
 create type order_status as enum
-  ('CONFIRMED','PROCESSING','DELIVERED','CANCELLED','REFUNDED');
+  ('CONFIRMED','PROCESSING','PAYMENT_RECEIVED','DELIVERED','CANCELLED','REFUNDED');
 
 create table orders (
   id                uuid primary key default gen_random_uuid(),
@@ -365,11 +365,12 @@ refuses illegal ones. **Enforce them server-side too** — the client check is U
 not a boundary (per [CLAUDE.md](./CLAUDE.md)).
 
 ```
-CONFIRMED  → PROCESSING, CANCELLED
-PROCESSING → DELIVERED, CANCELLED
-DELIVERED  → REFUNDED   (only with an approved refund request, see §3.1)
-CANCELLED  → REFUNDED
-REFUNDED   → (terminal)
+CONFIRMED        → PROCESSING, CANCELLED
+PROCESSING       → PAYMENT_RECEIVED, CANCELLED
+PAYMENT_RECEIVED → DELIVERED, CANCELLED
+DELIVERED        → REFUNDED   (only with an approved refund request, see §3.1)
+CANCELLED        → REFUNDED
+REFUNDED         → (terminal)
 ```
 
 `orders.delivered_at` is stamped by the same trigger on the way into

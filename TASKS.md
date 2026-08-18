@@ -119,8 +119,9 @@ The finished UI pins down these entities. This is the input to the schema:
 - **User** — id, name, email, role (`CUSTOMER | ADMIN | VENDOR | TAILOR |
   SUPER_ADMIN`), plus `commissionType` / `commissionValue` on vendors
 - **Product** — the `Product` interface in `src/data/products.ts`
-- **Order** — status (`CONFIRMED | PROCESSING | DELIVERED | CANCELLED |
-  REFUNDED`), fabric/stitching/shipping/total, ship-to, payment method, and
+- **Order** — status (`CONFIRMED | PROCESSING | PAYMENT_RECEIVED | DELIVERED |
+  CANCELLED | REFUNDED`), fabric/stitching/shipping/total, ship-to, payment
+  method, and
   **`referralCode`**
 - **OrderItem** — product, qty, price, and the stitching fields
 - **StitchingRequest** — the 12 measurements, neckline/sleeve/hemline,

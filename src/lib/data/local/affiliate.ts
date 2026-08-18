@@ -87,6 +87,12 @@ export const localAffiliate: AffiliateStore = {
   },
 
   async referredSales() {
+    // Read once rather than per row: every fixture sale belongs to the same
+    // signed-in vendor, so looking it up inside the map would ask the same
+    // question for each of them.
+    const rate =
+      DEMO_VENDORS.find((v) => v.email === currentEmail())?.commission ?? DEFAULT_COMMISSION;
+
     return DEMO_REFERRED_SALES.map((sale) => ({
       id: sale.id,
       orderNumber: sale.orderId.slice(-8).toUpperCase(),
@@ -97,11 +103,11 @@ export const localAffiliate: AffiliateStore = {
       // rather than inventing a return window this backend cannot run.
       status: "CREDITED" as const,
       // Derived at render on this backend — there is no commission record to
-      // read back, so the current rate is the only figure available.
-      commission: calculateCommission(
-        sale.salePrice,
-        DEMO_VENDORS.find((v) => v.email === currentEmail())?.commission ?? DEFAULT_COMMISSION
-      ),
+      // read back, so the current rate is the only figure available. That also
+      // makes the rate below the current one rather than a real snapshot,
+      // which is the honest answer here: a fixture has no history to preserve.
+      commission: calculateCommission(sale.salePrice, rate),
+      rate,
     }));
   },
 };
