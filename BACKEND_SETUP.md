@@ -187,6 +187,13 @@ cp .env.example .env.local
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes | Browser client key |
 | `SUPABASE_SERVICE_ROLE_KEY` | **NO** | Server-only admin key |
 | `NEXT_PUBLIC_DATA_BACKEND` | yes | `local` or `supabase` |
+| `DISCORD_NEW_USERS_WEBHOOK_URL` | **NO** | Server-only Discord webhook for guest and account events |
+| `DISCORD_ORDERS_WEBHOOK_URL` | **NO** | Server-only Discord webhook for order and status events |
+
+Discord notifications are best-effort operational alerts. They are sent only
+from server routes, never from the browser, and a Discord outage does not fail
+an order or status update. Keep both webhook URLs private and rotate them if
+they are ever exposed.
 
 ### About the two keys — read this properly
 

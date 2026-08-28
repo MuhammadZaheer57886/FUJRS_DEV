@@ -74,24 +74,39 @@ export const supabaseAuth: AuthStore = {
 
   async signUp(input) {
     const supabase = getBrowserClient();
-    const { data, error } = await supabase.auth.signUp({
-      email: input.email,
-      password: input.password,
-      // Read by the signup trigger for the display name only. The trigger
-      // hard-codes role = CUSTOMER and never reads a role from here.
-      options: { data: { name: input.name } },
-    });
+    const { data: current } = await supabase.auth.getUser();
+    const result = current.user?.is_anonymous
+      ? await supabase.auth.updateUser({
+          email: input.email,
+          password: input.password,
+          data: { name: input.name },
+        })
+      : await supabase.auth.signUp({
+          email: input.email,
+          password: input.password,
+          // Read by the signup trigger for the display name only. The trigger
+          // hard-codes role = CUSTOMER and never reads a role from here.
+          options: { data: { name: input.name } },
+        });
+    const { data, error } = result;
 
     if (error) return { error: friendlyError(error.message) };
     if (!data.user) return { error: "Sign-up failed. Please try again." };
 
     // With email confirmation on, there's no session yet — the user must
     // confirm before they can sign in. Say so rather than appearing to succeed.
-    if (!data.session) {
+    if (!current.user?.is_anonymous && !("session" in data && data.session)) {
       return { error: "Check your inbox to confirm your email, then sign in." };
     }
 
     const user = await loadUser(data.user.id, data.user.email ?? input.email);
+    if (user) {
+      void fetch("/api/notifications/user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: "account_created" }),
+      }).catch(() => undefined);
+    }
     return user ? { user } : { error: "Account created, but its profile is missing." };
   },
 

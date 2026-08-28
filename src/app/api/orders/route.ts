@@ -33,6 +33,7 @@ import { STITCHING_STATUSES, stitchingStatusToKey } from "@/lib/stitchingStatus"
 import { bespokePrice } from "@/lib/tailoringOptions";
 import { createAdminSupabase, createServerSupabase } from "@/lib/data/supabase/server";
 import type { Order, PaymentMethod } from "@/lib/data/types";
+import { notifyOrderCreated } from "@/lib/discord";
 
 /** PKR in the app, integer paisa in the database (SCHEMA.md). */
 const toPaisa = (pkr: number) => Math.round(pkr * 100);
@@ -446,6 +447,17 @@ export async function POST(request: Request) {
     paymentMethod,
     referralCode,
   };
+
+  await notifyOrderCreated({
+    id: order.id,
+    orderNumber: order.orderNumber,
+    customer: `${firstName} ${lastName}`,
+    email: contactEmail,
+    totalPaisa: toPaisa(totals.total),
+    itemCount: priced.reduce((count, line) => count + line.quantity, 0),
+    guest: Boolean(user?.is_anonymous),
+    referralCode,
+  });
 
   return NextResponse.json({ order });
 }

@@ -185,18 +185,19 @@ export const supabaseOrders: OrderStore = {
   },
 
   async updateStatus(id, status) {
+    const response = await fetch(`/api/orders/${id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (!response.ok) return null;
+
     const { data, error } = await getBrowserClient()
       .from("orders")
-      .update({ status })
-      .eq("id", id)
       .select(ORDER_SELECT)
+      .eq("id", id)
       .maybeSingle();
-
-    // Both failures mean the same thing to the caller — the move didn't
-    // happen. 23514 is the transition trigger; 42501 is RLS saying the caller
-    // isn't staff. The port's contract is null, not a thrown error.
     if (error || !data) return null;
-
     return toOrder(data as unknown as OrderRow);
   },
 };

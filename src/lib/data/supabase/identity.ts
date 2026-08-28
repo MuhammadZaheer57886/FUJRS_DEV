@@ -67,6 +67,11 @@ export async function ensureUserId(): Promise<string> {
           "anonymous sign-ins for this project."
       );
     }
+    void fetch("/api/notifications/user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event: "guest_created" }),
+    }).catch(() => undefined);
     return data.user.id;
   })();
 
