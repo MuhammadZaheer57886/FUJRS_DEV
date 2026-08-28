@@ -7,6 +7,8 @@ import { CompleteTheLook } from "@/components/product/CompleteTheLook";
 import { ProductReviews } from "@/components/product/ProductReviews";
 import { catalogRead } from "@/lib/data/server";
 import type { ProductGender } from "@/lib/data";
+import type { Metadata } from "next";
+import { absoluteUrl, siteOrigin } from "@/lib/seo";
 
 /**
  * There is no /unisex collection, so those pieces breadcrumb to New Arrivals
@@ -24,6 +26,29 @@ const collectionHref = (gender: ProductGender) =>
 export async function generateStaticParams() {
   const products = await catalogRead.list();
   return products.map((p) => ({ slug: p.slug }));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const product = await catalogRead.getBySlug((await params).slug);
+  if (!product) return {};
+
+  return {
+    title: product.title,
+    description: product.description,
+    alternates: siteOrigin ? { canonical: `/products/${product.slug}` } : undefined,
+    openGraph: {
+      type: "website",
+      title: product.title,
+      description: product.description,
+      images: product.images[0]
+        ? [{ url: product.images[0].url, alt: product.title }]
+        : undefined,
+    },
+  };
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -46,8 +71,71 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     .filter((p, i, arr) => arr.findIndex((x) => x.id === p.id) === i)
     .slice(0, 4);
 
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.title,
+    description: product.description,
+    sku: product.sku ?? undefined,
+    image: product.images.map((image) => image.url),
+    brand: { "@type": "Brand", name: "FUJRS" },
+    offers: {
+      "@type": "Offer",
+      ...(siteOrigin ? { url: absoluteUrl(`/products/${product.slug}`) } : {}),
+      priceCurrency: "PKR",
+      price: product.price,
+      availability:
+        product.stock > 0
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
+    },
+    ...(product.rating !== null && product.reviewCount > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: product.rating,
+            reviewCount: product.reviewCount,
+          },
+        }
+      : {}),
+  };
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        ...(siteOrigin ? { item: absoluteUrl("/") } : {}),
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: product.gender,
+        ...(siteOrigin ? { item: absoluteUrl(collectionHref(product.gender)) } : {}),
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: product.title,
+        ...(siteOrigin
+          ? { item: absoluteUrl(`/products/${product.slug}`) }
+          : {}),
+      },
+    ],
+  };
+
   return (
     <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop pt-12 pb-24">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
       <nav
         aria-label="Breadcrumb"
         className="flex items-center gap-2 mb-8 font-label-sm text-text-muted uppercase tracking-wider"

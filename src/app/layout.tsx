@@ -13,6 +13,7 @@ import { TailoringProvider } from "@/components/tailoring/TailoringContext";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { VisitReporter } from "@/components/providers/VisitReporter";
 import { ToastProvider } from "@/components/ui/Toast";
+import { siteMetadata } from "@/lib/seo";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -26,10 +27,7 @@ const hanken = Hanken_Grotesk({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "FUJRS | Premium Fashion & Bespoke Tailoring",
-  description: "Ready-to-wear collections and made-to-measure tailoring from FUJRS.",
-};
+export const metadata: Metadata = siteMetadata;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

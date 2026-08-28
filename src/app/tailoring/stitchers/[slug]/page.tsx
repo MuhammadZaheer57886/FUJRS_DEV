@@ -3,9 +3,28 @@ import Link from "next/link";
 import { Reveal } from "@/components/ui/Reveal";
 import { getStitcherBySlug, stitchers } from "@/data/stitchers";
 import { LinkButton } from "@/components/ui/Button";
+import type { Metadata } from "next";
+import { siteOrigin } from "@/lib/seo";
 
 export function generateStaticParams() {
   return stitchers.map((s) => ({ slug: s.slug }));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const stitcher = getStitcherBySlug((await params).slug);
+  if (!stitcher) return {};
+
+  return {
+    title: `${stitcher.name}, FUJRS Master Tailor`,
+    description: stitcher.bio,
+    alternates: siteOrigin
+      ? { canonical: `/tailoring/stitchers/${stitcher.slug}` }
+      : undefined,
+  };
 }
 
 const spanClass: Record<string, string> = {

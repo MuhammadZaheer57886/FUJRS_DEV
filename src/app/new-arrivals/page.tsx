@@ -3,6 +3,14 @@ import { LinkButton } from "@/components/ui/Button";
 import { catalogRead } from "@/lib/data/server";
 import { EmptyCatalogue } from "@/components/ui/EmptyCatalogue";
 import { ProductImage } from "@/components/ui/ProductImage";
+import type { Metadata } from "next";
+import { siteOrigin } from "@/lib/seo";
+
+export const metadata: Metadata = {
+  title: "New Arrivals",
+  description: "Discover the latest ready-to-wear and unstitched fashion from FUJRS in Pakistan.",
+  alternates: siteOrigin ? { canonical: "/new-arrivals" } : undefined,
+};
 
 export default async function NewArrivalsPage() {
   const newArrivals = (await catalogRead.list()).filter((p) => p.isNewArrival);
