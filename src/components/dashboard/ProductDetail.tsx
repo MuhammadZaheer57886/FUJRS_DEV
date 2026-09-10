@@ -16,6 +16,7 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { useAsync } from "@/lib/useAsync";
 import { COLOR_FAMILY_LABELS } from "@/lib/productTaxonomy";
 import { catalog, StoreWriteError, type ProductInput } from "@/lib/data";
+import { revalidateCatalog } from "@/lib/revalidateCatalog";
 
 /** Stock at or below this reads as "nearly gone" rather than a plain number. */
 const LOW_STOCK = 5;
@@ -79,6 +80,7 @@ export function ProductDetail({ slug }: { slug: string }) {
       await catalog.update(product.id, input);
       setEditing(false);
       reload();
+      await revalidateCatalog();
       toast("Changes saved. The shop is showing them now.", "success");
     } catch (err) {
       console.error("[catalog.update]", err);
@@ -96,6 +98,7 @@ export function ProductDetail({ slug }: { slug: string }) {
     if (!product) return;
     try {
       await catalog.remove(product.id);
+      await revalidateCatalog();
       toast(`“${product.title}” removed from the catalogue.`, "info");
       router.push("/dashboard");
     } catch (err) {

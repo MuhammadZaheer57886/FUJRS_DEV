@@ -11,8 +11,9 @@ import "server-only";
 // Both satisfy `CatalogReadStore`, so the pages are identical either way and
 // still never learn which backend is running (BACKEND_SETUP.md §1).
 //
-// Pieces added from the dashboard therefore appear in the shop as soon as the
-// backend is `supabase`. On `local` they stay in the browser that added them —
+// Pieces added from the dashboard appear in the shop as soon as the backend
+// is `supabase` (the server adapter calls `noStore()` so a deploy snapshot
+// cannot hide them). On `local` they stay in the browser that added them:
 // the server has no way to see another visitor's localStorage, which is
 // exactly why `local` is the demo mode.
 

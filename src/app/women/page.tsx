@@ -3,6 +3,8 @@ import { WomenCollection } from "./WomenCollection";
 import type { Metadata } from "next";
 import { siteOrigin } from "@/lib/seo";
 
+export { dynamic } from "@/lib/catalogRendering";
+
 export const metadata: Metadata = {
   title: "Women's Unstitched Suits in Pakistan",
   description:
