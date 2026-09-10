@@ -7,6 +7,8 @@ import { InstagramGallery } from "@/components/home/InstagramGallery";
 import { NewsletterSection } from "@/components/home/NewsletterSection";
 import { Reveal } from "@/components/ui/Reveal";
 
+export { dynamic } from "@/lib/catalogRendering";
+
 export default function HomePage() {
   return (
     <>

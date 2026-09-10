@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ProductFilterGrid } from "@/components/ui/ProductFilterGrid";
 import { catalogRead } from "@/lib/data/server";
 
+export { dynamic } from "@/lib/catalogRendering";
+
 async function searchProducts(query: string) {
   const q = query.trim().toLowerCase();
   if (!q) return [];

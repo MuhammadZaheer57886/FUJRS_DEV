@@ -6,6 +6,8 @@ import { ProductImage } from "@/components/ui/ProductImage";
 import type { Metadata } from "next";
 import { siteOrigin } from "@/lib/seo";
 
+export { dynamic } from "@/lib/catalogRendering";
+
 export const metadata: Metadata = {
   title: "New Arrivals",
   description: "Discover the latest ready-to-wear and unstitched fashion from FUJRS in Pakistan.",

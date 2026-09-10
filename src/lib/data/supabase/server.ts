@@ -41,14 +41,14 @@ export async function createServerSupabase() {
 }
 
 /**
- * Client for genuinely public data — the catalogue, and nothing else.
+ * Client for genuinely public data: the catalogue, and nothing else.
  *
- * It carries no cookies, which is the point: reading `cookies()` opts a route
- * out of static rendering, so a product page built with `createServerSupabase`
- * would be re-rendered per request for content identical to every visitor.
- * RLS still applies, as the anonymous role — `products_public_read` is what
- * makes this safe, and it is why this must never be used for a user's own
- * orders, addresses or earnings.
+ * It carries no cookies so a catalogue read does not attach a visitor session.
+ * It still runs per request. A statically prerendered /women page would freeze
+ * the list at deploy, which is how Admin can show a new product while the shop
+ * does not. `noStore()` in the catalogue server adapter is what keeps that
+ * from happening. RLS still applies as the anonymous role (`products_public_read`).
+ * Never use this for a user's own orders, addresses or earnings.
  */
 export async function createPublicSupabase() {
   assertConfigured();

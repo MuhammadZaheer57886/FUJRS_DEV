@@ -3,6 +3,8 @@ import { MenCollection } from "./MenCollection";
 import type { Metadata } from "next";
 import { siteOrigin } from "@/lib/seo";
 
+export { dynamic } from "@/lib/catalogRendering";
+
 export const metadata: Metadata = {
   title: "Men's Unstitched Fabrics in Pakistan",
   description:

@@ -10,6 +10,8 @@ import type { ProductGender } from "@/lib/data";
 import type { Metadata } from "next";
 import { absoluteUrl, siteOrigin } from "@/lib/seo";
 
+export { dynamic } from "@/lib/catalogRendering";
+
 /**
  * There is no /unisex collection, so those pieces breadcrumb to New Arrivals
  * rather than a 404 — the gender enum has three values, the site has two
@@ -17,16 +19,6 @@ import { absoluteUrl, siteOrigin } from "@/lib/seo";
  */
 const collectionHref = (gender: ProductGender) =>
   gender === "Unisex" ? "/new-arrivals" : `/${gender.toLowerCase()}`;
-
-/**
- * Pre-renders a page per product at build time. A piece published after the
- * build still works — `dynamicParams` defaults to true, so an unknown slug is
- * rendered on demand and cached — but the catalogue as it stands ships static.
- */
-export async function generateStaticParams() {
-  const products = await catalogRead.list();
-  return products.map((p) => ({ slug: p.slug }));
-}
 
 export async function generateMetadata({
   params,

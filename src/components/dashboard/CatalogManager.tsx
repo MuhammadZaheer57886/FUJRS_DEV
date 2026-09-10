@@ -9,6 +9,7 @@ import { ProductForm } from "@/components/dashboard/ProductForm";
 import { CatalogTable } from "@/components/dashboard/CatalogTable";
 import { catalog, StoreWriteError } from "@/lib/data";
 import type { CatalogItem, ProductInput } from "@/lib/data";
+import { revalidateCatalog } from "@/lib/revalidateCatalog";
 
 /**
  * Catalogue management for the roles that can publish — shared by the Admin
@@ -40,6 +41,7 @@ export function CatalogManager() {
       await catalog.create(input, { email: session.user.email, name: session.user.name });
       setShowForm(false);
       await refresh();
+      await revalidateCatalog();
       toast("Product published to the catalogue.", "success");
     } catch (err) {
       console.error("[catalog.create]", err);
@@ -47,6 +49,7 @@ export function CatalogManager() {
       // Refresh so the table matches the database rather than looking empty.
       try {
         await refresh();
+        await revalidateCatalog();
       } catch (refreshErr) {
         console.error("[catalog.list]", refreshErr);
       }
@@ -61,6 +64,7 @@ export function CatalogManager() {
     try {
       await catalog.remove(pendingRemoval.id);
       await refresh();
+      await revalidateCatalog();
       toast(`“${pendingRemoval.title}” removed from the catalogue.`, "info");
       setPendingRemoval(null);
     } catch (err) {
